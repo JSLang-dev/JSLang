@@ -1,0 +1,13 @@
+function absolute(value: i32): i32 {
+    if (value < 0) {
+        return -value;
+    } else {
+        return value;
+    }
+}
+
+function main(): i32 {
+    const result: i32 = absolute(-42);
+    console.error(result);
+    return result;
+}

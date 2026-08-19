@@ -1,16 +1,18 @@
 # JSLang
 
-JSLang is an experimental, statically typed, ahead-of-time compiled programming language. It combines familiar JavaScript/TypeScript-style syntax with Go-inspired simplicity and a path toward native systems programming.
+JSLang is an experimental, statically typed, ahead-of-time compiled programming language. It combines familiar JavaScript/TypeScript-style syntax with a path toward native systems programming.
 
-> JavaScript-like syntax. Go-like simplicity. Native binaries. From cloud to kernel.
+> JavaScript-like syntax. Native binaries. From cloud to kernel.
 
 JSLang is not JavaScript and does not run on Node.js or V8. Source is compiled by the `jsl` tool into native programs in future milestones.
 
+JSLang follows JavaScript and TypeScript conventions wherever they work with static typing, deterministic native compilation, and safety. Where a dynamic runtime behavior would conflict with those constraints, JSLang uses an explicit documented alternative. This keeps the language familiar while supporting native applications and future kernel-level development.
+
 ## Status
 
-The current released compiler is **v0.0.1** and provides source-positioned lexing through `jsl lex`.
+The current compiler is **v0.0.2**. It provides source-positioned lexing through `jsl lex` and parser output through `jsl parse`.
 
-**v0.0.2** is the next parser milestone. It introduces the AST and parsing support for functions, typed parameters, blocks, variable declarations, return statements, expression statements, `if` statements, unary and binary expressions, and function calls. Until that implementation lands, `jsl parse` is documented as the intended command, not an available command.
+**v0.0.2** introduces the AST and parsing support for functions, typed parameters, blocks, variable declarations, return statements, expression statements, `if` statements, unary and binary expressions, and function calls.
 
 The root [`VERSION`](VERSION) file is the single source of truth for the released compiler version.
 
@@ -23,6 +25,7 @@ JSLang is designed for explicit, predictable code:
 - `const` declares an immutable binding; `let` declares a mutable binding.
 - Statements end with semicolons, and blocks use braces.
 - Errors, concurrency, low-level memory access, structs, interfaces, and JSLangK are planned language features; they are not all available in v0.0.2.
+- Safety takes priority over dynamic convenience: undefined behavior and low-level operations must be explicit, documented, and auditable.
 
 ## Your first JSLang program
 
@@ -31,18 +34,18 @@ Create `hello.jsl`:
 ```ts
 function main(): i32 {
     const message: string = "Hello, JSLang";
-    println(message);
+    console.log(message);
     return 0;
 }
 ```
 
-For now, `println` illustrates the intended language syntax. The compiler has not yet implemented type checking, a standard library, or native code generation, so this program cannot run yet. You can inspect its tokens with the current compiler:
+For now, `console.log` illustrates the intended JavaScript-style API. The compiler has not yet implemented type checking, the standard library, or native code generation, so this program cannot run yet. You can inspect its tokens with the current compiler:
 
 ```bash
 ./build/jsl lex hello.jsl
 ```
 
-Once v0.0.2 is implemented, its structure can be checked with:
+Inspect its parsed structure with:
 
 ```bash
 ./build/jsl parse hello.jsl
@@ -64,7 +67,7 @@ Use `void` when a function does not return a value:
 
 ```ts
 function greet(name: string): void {
-    println(name);
+    console.info(name);
 }
 ```
 
@@ -91,7 +94,7 @@ let enabled = true;
 
 ### Expressions and calls
 
-v0.0.2 parses literals, identifiers, parenthesized expressions, unary operators, binary operators, and function calls.
+v0.0.2 parses literals, identifiers, parenthesized expressions, unary operators, binary operators, conditional expressions, property access, and function calls.
 
 ```ts
 function calculate(value: i32): i32 {
@@ -101,11 +104,22 @@ function calculate(value: i32): i32 {
 
 function main(): i32 {
     const result: i32 = calculate(20);
+    console.error(result);
     return result;
 }
 ```
 
 The lexer recognizes arithmetic operators (`+`, `-`, `*`, `/`, `%`), comparisons (`==`, `!=`, `<`, `<=`, `>`, `>=`), logical operators (`!`, `&&`, `||`), and assignment (`=`). Semantic rules—including operator type validation—belong to later milestones.
+
+### Conditional expressions
+
+Use the JavaScript/TypeScript ternary form when an expression selects between two values:
+
+```ts
+const absolute: i32 = value < 0 ? -value : value;
+```
+
+The condition is evaluated first, followed by exactly one of the two result expressions.
 
 ### Blocks, returns, and conditionals
 
@@ -140,7 +154,7 @@ cmake --build build
 ctest --test-dir build
 ```
 
-`jsl lex <file>` prints each token with its filename, line, and column. This is the only language-processing command currently implemented. Run `./build/jsl` to see the current CLI usage.
+`jsl lex <file>` prints each token with its filename, line, and column. `jsl parse <file>` prints a deterministic representation of the parsed AST. Run `./build/jsl` to see the current CLI usage.
 
 ## Roadmap
 

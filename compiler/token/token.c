@@ -17,7 +17,7 @@ const char *jsl_token_type_name(JslTokenType type) {
         "ILLEGAL", "EOF", "IDENTIFIER", "INTEGER", "FLOAT", "STRING", "FUNCTION", "RETURN",
         "CONST", "LET", "STRUCT", "INTERFACE", "IF", "ELSE", "WHILE", "FOR", "TRUE", "FALSE",
         "NULL", "IMPORT", "FROM", "+", "-", "*", "/", "%", "=", "==", "!=", "<", ">",
-        "<=", ">=", "&&", "||", "!", "(", ")", "{", "}", "[", "]", ";", ":", ",", "."
+        "<=", ">=", "&&", "||", "!", "(", ")", "{", "}", "[", "]", ";", "?", ":", ",", "."
     };
     return names[type];
 }

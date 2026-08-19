@@ -91,6 +91,7 @@ JslToken jsl_lexer_next(JslLexer *lexer) {
         case '[': return make_token(lexer, JSL_TOKEN_LEFT_BRACKET, start, start_position);
         case ']': return make_token(lexer, JSL_TOKEN_RIGHT_BRACKET, start, start_position);
         case ';': return make_token(lexer, JSL_TOKEN_SEMICOLON, start, start_position);
+        case '?': return make_token(lexer, JSL_TOKEN_QUESTION, start, start_position);
         case ':': return make_token(lexer, JSL_TOKEN_COLON, start, start_position);
         case ',': return make_token(lexer, JSL_TOKEN_COMMA, start, start_position);
         case '.': return make_token(lexer, JSL_TOKEN_DOT, start, start_position);

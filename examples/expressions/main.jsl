@@ -1,0 +1,9 @@
+function calculate(value: i32): i32 {
+    const doubled: i32 = value * 2;
+    return -(doubled + 1) % 7;
+}
+
+function main(): i32 {
+    const result: i32 = calculate(21);
+    return result > 0 ? result : 0;
+}

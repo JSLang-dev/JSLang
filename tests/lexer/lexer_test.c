@@ -26,8 +26,8 @@ static void test_program(void) {
 }
 
 static void test_literals_operators_and_comments(void) {
-    JslLexer lexer; jsl_lexer_init(&lexer, "tokens.jsl", "// skip\nlet x = 3.14 >= 2 && false; /* skip */ \"hello\"");
-    const JslTokenType types[] = {JSL_TOKEN_LET, JSL_TOKEN_IDENTIFIER, JSL_TOKEN_ASSIGN, JSL_TOKEN_FLOAT, JSL_TOKEN_GREATER_EQUAL, JSL_TOKEN_INTEGER, JSL_TOKEN_AND, JSL_TOKEN_FALSE, JSL_TOKEN_SEMICOLON, JSL_TOKEN_STRING, JSL_TOKEN_EOF};
+    JslLexer lexer; jsl_lexer_init(&lexer, "tokens.jsl", "// skip\nlet x = 3.14 >= 2 ? false : true; /* skip */ \"hello\"");
+    const JslTokenType types[] = {JSL_TOKEN_LET, JSL_TOKEN_IDENTIFIER, JSL_TOKEN_ASSIGN, JSL_TOKEN_FLOAT, JSL_TOKEN_GREATER_EQUAL, JSL_TOKEN_INTEGER, JSL_TOKEN_QUESTION, JSL_TOKEN_FALSE, JSL_TOKEN_COLON, JSL_TOKEN_TRUE, JSL_TOKEN_SEMICOLON, JSL_TOKEN_STRING, JSL_TOKEN_EOF};
     for (size_t i = 0; i < sizeof(types) / sizeof(types[0]); i++) assert(jsl_lexer_next(&lexer).type == types[i]);
 }
 
