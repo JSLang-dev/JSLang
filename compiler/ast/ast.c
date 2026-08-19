@@ -31,6 +31,7 @@ static void free_list(JslAstNodeList *list) {
 void jsl_ast_node_free(JslAstNode *node) {
     if (node == NULL) return;
     switch (node->kind) {
+        case JSL_AST_IMPORT_DECLARATION: free(node->as.import_declaration.names); break;
         case JSL_AST_FUNCTION_DECLARATION:
             free(node->as.function_declaration.parameters);
             jsl_ast_node_free(node->as.function_declaration.body);

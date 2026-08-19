@@ -83,6 +83,23 @@ static void test_conditional_expression(void) {
     jsl_ast_program_free(&program);
 }
 
+static void test_import_and_export(void) {
+    JslParser parser;
+    JslAstProgram program;
+    jsl_parser_init(&parser, "main.jsl", "import { add, subtract } from \"./math.jsl\"; export function main(): i32 { return add(20, 22); }");
+    assert(jsl_parser_parse_program(&parser, &program));
+    assert(program.declarations.count == 2);
+    JslAstNode *import_declaration = program.declarations.items[0];
+    assert(import_declaration->kind == JSL_AST_IMPORT_DECLARATION);
+    assert(import_declaration->as.import_declaration.name_count == 2);
+    assert(text_equals(import_declaration->as.import_declaration.names[0], "add"));
+    assert(text_equals(import_declaration->as.import_declaration.module_path, "./math.jsl"));
+    JslAstNode *function = program.declarations.items[1];
+    assert(function->kind == JSL_AST_FUNCTION_DECLARATION);
+    assert(function->as.function_declaration.is_exported);
+    jsl_ast_program_free(&program);
+}
+
 static void test_parser_error_has_position(void) {
     JslParser parser;
     JslAstProgram program;
@@ -98,6 +115,7 @@ int main(void) {
     test_function_declaration();
     test_if_calls_and_unary_expressions();
     test_conditional_expression();
+    test_import_and_export();
     test_parser_error_has_position();
     puts("parser tests passed");
     return 0;

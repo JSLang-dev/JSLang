@@ -11,6 +11,7 @@ typedef struct {
 } JslAstText;
 
 typedef enum {
+    JSL_AST_IMPORT_DECLARATION,
     JSL_AST_FUNCTION_DECLARATION,
     JSL_AST_BLOCK_STATEMENT,
     JSL_AST_VARIABLE_STATEMENT,
@@ -55,6 +56,12 @@ struct JslAstNode {
     JslPosition position;
     union {
         struct {
+            JslAstText *names;
+            size_t name_count;
+            JslAstText module_path;
+        } import_declaration;
+        struct {
+            int is_exported;
             JslAstText name;
             JslAstParameter *parameters;
             size_t parameter_count;

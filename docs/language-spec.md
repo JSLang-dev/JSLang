@@ -11,9 +11,13 @@ The language aims to prevent crashes where practical. Low-level operations and a
 ## v0.0.2 grammar
 
 ```text
-program          → functionDeclaration* EOF ;
+program          → declaration* EOF ;
+declaration      → importDeclaration | functionDeclaration ;
+importDeclaration
+                 → "import" "{" importedNames? "}" "from" STRING ";" ;
+importedNames    → IDENTIFIER ( "," IDENTIFIER )* ;
 functionDeclaration
-                 → "function" IDENTIFIER "(" parameters? ")" ":" IDENTIFIER block ;
+                 → "export"? "function" IDENTIFIER "(" parameters? ")" ":" IDENTIFIER block ;
 parameters       → parameter ( "," parameter )* ;
 parameter        → IDENTIFIER ":" IDENTIFIER ;
 block            → "{" statement* "}" ;
@@ -28,3 +32,5 @@ expression       → binaryExpression ( "?" expression ":" expression )? ;
 ```
 
 The parser accepts identifiers; integer, floating-point, string, boolean, and null literals; grouping; unary `!`, `-`, and `+`; binary arithmetic, comparison, equality, and logical operators; JavaScript/TypeScript-style conditional expressions (`condition ? whenTrue : whenFalse`); dotted property access; and function calls. This includes JavaScript-style calls such as `console.log(message)`, `console.info(message)`, and `console.error(message)`. Assignment is tokenized but not yet a parsed expression or statement. Type validity and runtime behavior are deferred to semantic analysis and later compiler stages.
+
+Source files use the `.jsl` extension. v0.0.2 parses named imports and exported functions, but does not yet resolve module paths or validate imported and exported symbols.

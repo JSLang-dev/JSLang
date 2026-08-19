@@ -9,14 +9,14 @@ static const Keyword keywords[] = {
     {"let", JSL_TOKEN_LET}, {"struct", JSL_TOKEN_STRUCT}, {"interface", JSL_TOKEN_INTERFACE},
     {"if", JSL_TOKEN_IF}, {"else", JSL_TOKEN_ELSE}, {"while", JSL_TOKEN_WHILE},
     {"for", JSL_TOKEN_FOR}, {"true", JSL_TOKEN_TRUE}, {"false", JSL_TOKEN_FALSE},
-    {"null", JSL_TOKEN_NULL}, {"import", JSL_TOKEN_IMPORT}, {"from", JSL_TOKEN_FROM},
+    {"null", JSL_TOKEN_NULL}, {"import", JSL_TOKEN_IMPORT}, {"from", JSL_TOKEN_FROM}, {"export", JSL_TOKEN_EXPORT},
 };
 
 const char *jsl_token_type_name(JslTokenType type) {
     static const char *names[] = {
         "ILLEGAL", "EOF", "IDENTIFIER", "INTEGER", "FLOAT", "STRING", "FUNCTION", "RETURN",
         "CONST", "LET", "STRUCT", "INTERFACE", "IF", "ELSE", "WHILE", "FOR", "TRUE", "FALSE",
-        "NULL", "IMPORT", "FROM", "+", "-", "*", "/", "%", "=", "==", "!=", "<", ">",
+        "NULL", "IMPORT", "FROM", "EXPORT", "+", "-", "*", "/", "%", "=", "==", "!=", "<", ">",
         "<=", ">=", "&&", "||", "!", "(", ")", "{", "}", "[", "]", ";", "?", ":", ",", "."
     };
     return names[type];

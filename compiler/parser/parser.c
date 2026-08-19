@@ -281,7 +281,7 @@ static JslAstNode *parse_statement(JslParser *parser) {
     return node;
 }
 
-static JslAstNode *parse_function(JslParser *parser, JslPosition position) {
+static JslAstNode *parse_function(JslParser *parser, JslPosition position, int is_exported) {
     if (!consume(parser, JSL_TOKEN_IDENTIFIER, "expected function name")) return NULL;
     JslToken name = parser->previous;
     if (!consume(parser, JSL_TOKEN_LEFT_PAREN, "expected '(' after function name")) return NULL;
@@ -305,11 +305,36 @@ static JslAstNode *parse_function(JslParser *parser, JslPosition position) {
     if (body == NULL) { free(parameters); return NULL; }
     JslAstNode *node = new_node(parser, JSL_AST_FUNCTION_DECLARATION, position);
     if (node == NULL) { free(parameters); jsl_ast_node_free(body); return NULL; }
+    node->as.function_declaration.is_exported = is_exported;
     node->as.function_declaration.name = token_text(name);
     node->as.function_declaration.parameters = parameters;
     node->as.function_declaration.parameter_count = parameter_count;
     node->as.function_declaration.return_type = return_type;
     node->as.function_declaration.body = body;
+    return node;
+}
+
+static JslAstNode *parse_import(JslParser *parser, JslPosition position) {
+    if (!consume(parser, JSL_TOKEN_LEFT_BRACE, "expected '{' after 'import'")) return NULL;
+    JslAstText *names = NULL;
+    size_t name_count = 0;
+    if (!check(parser, JSL_TOKEN_RIGHT_BRACE)) {
+        do {
+            if (!consume(parser, JSL_TOKEN_IDENTIFIER, "expected imported name")) { free(names); return NULL; }
+            JslAstText *grown = realloc(names, (name_count + 1) * sizeof(*names));
+            if (grown == NULL) { free(names); set_error(parser, parser->previous.position, "out of memory"); return NULL; }
+            names = grown;
+            names[name_count++] = token_text(parser->previous);
+        } while (match(parser, JSL_TOKEN_COMMA));
+    }
+    if (!consume(parser, JSL_TOKEN_RIGHT_BRACE, "expected '}' after imported names") || !consume(parser, JSL_TOKEN_FROM, "expected 'from' after imported names") || !consume(parser, JSL_TOKEN_STRING, "expected module path string after 'from'")) { free(names); return NULL; }
+    JslAstText module_path = token_text(parser->previous);
+    if (!consume(parser, JSL_TOKEN_SEMICOLON, "expected ';' after import declaration")) { free(names); return NULL; }
+    JslAstNode *node = new_node(parser, JSL_AST_IMPORT_DECLARATION, position);
+    if (node == NULL) { free(names); return NULL; }
+    node->as.import_declaration.names = names;
+    node->as.import_declaration.name_count = name_count;
+    node->as.import_declaration.module_path = module_path;
     return node;
 }
 
@@ -327,8 +352,13 @@ int jsl_parser_parse_program(JslParser *parser, JslAstProgram *program) {
     *program = (JslAstProgram){0};
     while (!check(parser, JSL_TOKEN_EOF) && !parser->had_error) {
         JslToken token = parser->current;
-        if (!match(parser, JSL_TOKEN_FUNCTION)) { set_error(parser, token.position, "expected function declaration"); break; }
-        JslAstNode *declaration = parse_function(parser, token.position);
+        JslAstNode *declaration;
+        if (match(parser, JSL_TOKEN_IMPORT)) declaration = parse_import(parser, token.position);
+        else {
+            int is_exported = match(parser, JSL_TOKEN_EXPORT);
+            if (!match(parser, JSL_TOKEN_FUNCTION)) { set_error(parser, token.position, "expected import or function declaration"); break; }
+            declaration = parse_function(parser, token.position, is_exported);
+        }
         if (declaration == NULL || !jsl_ast_node_list_append(&program->declarations, declaration)) {
             if (declaration != NULL) jsl_ast_node_free(declaration);
             set_error(parser, parser->current.position, "out of memory");
@@ -351,8 +381,15 @@ static void print_list(const JslAstNodeList *list) {
 }
 static void print_node(const JslAstNode *node) {
     switch (node->kind) {
+        case JSL_AST_IMPORT_DECLARATION:
+            printf("(import (");
+            for (size_t i = 0; i < node->as.import_declaration.name_count; i++) {
+                if (i != 0) putchar(' ');
+                print_text(node->as.import_declaration.names[i]);
+            }
+            printf(") "); print_text(node->as.import_declaration.module_path); putchar(')'); break;
         case JSL_AST_FUNCTION_DECLARATION:
-            printf("(function "); print_text(node->as.function_declaration.name); printf(" (");
+            printf("(%sfunction ", node->as.function_declaration.is_exported ? "export " : ""); print_text(node->as.function_declaration.name); printf(" (");
             for (size_t i = 0; i < node->as.function_declaration.parameter_count; i++) {
                 if (i != 0) putchar(' ');
                 print_text(node->as.function_declaration.parameters[i].name); putchar(':'); print_text(node->as.function_declaration.parameters[i].type_name);

@@ -53,6 +53,28 @@ Inspect its parsed structure with:
 
 ## Syntax guide for v0.0.2
 
+### Modules
+
+JSLang source files use the `.jsl` extension. Import named exports with JavaScript-style syntax:
+
+```ts
+import { add } from "./math.jsl";
+
+function main(): i32 {
+    return add(20, 22);
+}
+```
+
+Export a function from another file:
+
+```ts
+export function add(left: i32, right: i32): i32 {
+    return left + right;
+}
+```
+
+v0.0.2 parses module declarations and preserves them in the AST. Resolving module paths, validating exports, and linking imported symbols will be implemented during semantic analysis.
+
 ### Functions
 
 Declare functions with `function`. Parameters and return values use `name: Type` annotations. The initial language requires explicit return types.

@@ -31,6 +31,12 @@ static void test_literals_operators_and_comments(void) {
     for (size_t i = 0; i < sizeof(types) / sizeof(types[0]); i++) assert(jsl_lexer_next(&lexer).type == types[i]);
 }
 
+static void test_module_keywords(void) {
+    JslLexer lexer; jsl_lexer_init(&lexer, "module.jsl", "import { add } from \"./math.jsl\"; export function add(): i32 {}");
+    const JslTokenType types[] = {JSL_TOKEN_IMPORT, JSL_TOKEN_LEFT_BRACE, JSL_TOKEN_IDENTIFIER, JSL_TOKEN_RIGHT_BRACE, JSL_TOKEN_FROM, JSL_TOKEN_STRING, JSL_TOKEN_SEMICOLON, JSL_TOKEN_EXPORT, JSL_TOKEN_FUNCTION};
+    for (size_t i = 0; i < sizeof(types) / sizeof(types[0]); i++) assert(jsl_lexer_next(&lexer).type == types[i]);
+}
+
 static void test_invalid_character(void) {
     JslLexer lexer; jsl_lexer_init(&lexer, "bad.jsl", "const value = @;");
     while (jsl_lexer_next(&lexer).type != JSL_TOKEN_ILLEGAL) {}
@@ -41,7 +47,7 @@ static void test_invalid_character(void) {
 }
 
 int main(void) {
-    test_program(); test_literals_operators_and_comments(); test_invalid_character();
+    test_program(); test_literals_operators_and_comments(); test_module_keywords(); test_invalid_character();
     puts("lexer tests passed");
     return 0;
 }
