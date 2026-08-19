@@ -1,0 +1,8 @@
+# Go build and coverage output
+bin/
+build/
+coverage.out
+
+# Editor and operating-system files
+.DS_Store
+AGENT*
