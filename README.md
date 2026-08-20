@@ -10,9 +10,9 @@ JSLang follows JavaScript and TypeScript conventions wherever they work with sta
 
 ## Status
 
-The current compiler is **v0.0.5**. It provides source-positioned lexing through `jsl lex`, parser output through `jsl parse`, semantic and type validation through `jsl check`, and native executable generation through `jsl build`.
+The current compiler is **v0.0.6**. It provides source-positioned lexing through `jsl lex`, parser output through `jsl parse`, semantic and type validation through `jsl check`, and native executable generation through `jsl build`.
 
-**v0.0.5** introduces the first native executable backend. It compiles the minimal supported entry point, `function main(): i32 { return <integer>; }`, into a native executable using a temporary C translation step and the host C compiler.
+**v0.0.6** extends the native backend with multiple `i32` functions, typed parameters, local variables, arithmetic expressions, and direct function calls.
 
 The root [`VERSION`](VERSION) file is the single source of truth for the released compiler version.
 
@@ -65,7 +65,15 @@ Build the v0.0.5 executable example:
 echo $?
 ```
 
-The resulting exit code is `42`. The first backend intentionally supports only a parameterless `main` function with one integer-literal return statement. Functions, variables, calls, and standard-library APIs are scheduled for later executable milestones.
+The resulting exit code is `42`. v0.0.6 can also build [the functions example](examples/functions/main.jsl):
+
+```bash
+./build/jsl build examples/functions/main.jsl -o functions-app
+./functions-app
+echo $?
+```
+
+The backend currently supports `i32` functions and parameters, local `i32` variables, integer literals, unary and binary expressions, direct calls, and returns. Standard-library APIs, structs, conditionals, imports, and other types are scheduled for later executable milestones.
 
 ## Syntax guide for v0.0.2
 
@@ -205,5 +213,6 @@ ctest --test-dir build
 | v0.0.3 | Scopes, symbols, duplicate-name validation, and undefined-variable detection |
 | v0.0.4 | Primitive types, inference, assignment checks, binary expressions, returns, and function calls |
 | v0.0.5 | Minimal native executable backend and `jsl build` |
+| v0.0.6 | Multiple functions, `i32` parameters, local variables, calls, and expressions in the native backend |
 
 See [`AGENT.md`](AGENT.md) for the project’s complete design principles and development roadmap. The evolving language references live in [`docs/`](docs/).

@@ -9,7 +9,15 @@ trap 'rm -f "$output"' EXIT
 "$jsl" build examples/executable/main.jsl -o "$output"
 set +e
 "$output"
-status=$?
+first_exit_code=$?
 set -e
 
-test "$status" -eq 42
+test "$first_exit_code" -eq 42
+
+"$jsl" build examples/functions/main.jsl -o "$output"
+set +e
+"$output"
+second_exit_code=$?
+set -e
+
+test "$second_exit_code" -eq 42

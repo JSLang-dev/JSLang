@@ -53,7 +53,7 @@ Arithmetic and relational comparison operators require matching numeric operand 
 
 Calls to locally declared functions validate argument count and parameter types, and their result type is the function's declared return type. Imported functions and built-in APIs remain type-unknown until module resolution and standard-library declarations are implemented.
 
-## v0.0.5 executable subset
+## v0.0.6 executable subset
 
 `jsl build` currently compiles this minimal program shape:
 
@@ -63,4 +63,4 @@ function main(): i32 {
 }
 ```
 
-The entry point must be named `main`, have no parameters, return `i32`, and contain exactly one return statement with an integer literal. Other valid v0.0.4 programs can be parsed and type-checked but are not executable until later backend milestones.
+The entry point must be named `main`, have no parameters, and return `i32`. The backend supports additional `i32` functions and parameters, local `i32` variables, integer literals, unary and binary expressions, direct function calls, and returns. Other valid programs can be parsed and type-checked but are not executable until later backend milestones.
