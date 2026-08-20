@@ -8,6 +8,7 @@ typedef enum {
     JSL_SYMBOL_VARIABLE,
     JSL_SYMBOL_PARAMETER,
     JSL_SYMBOL_IMPORT,
+    JSL_SYMBOL_STRUCT,
     JSL_SYMBOL_BUILTIN
 } JslSymbolKind;
 

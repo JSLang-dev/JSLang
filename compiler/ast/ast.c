@@ -32,6 +32,7 @@ void jsl_ast_node_free(JslAstNode *node) {
     if (node == NULL) return;
     switch (node->kind) {
         case JSL_AST_IMPORT_DECLARATION: free(node->as.import_declaration.names); break;
+        case JSL_AST_STRUCT_DECLARATION: free(node->as.struct_declaration.fields); break;
         case JSL_AST_FUNCTION_DECLARATION:
             free(node->as.function_declaration.parameters);
             jsl_ast_node_free(node->as.function_declaration.body);
@@ -56,6 +57,10 @@ void jsl_ast_node_free(JslAstNode *node) {
             jsl_ast_node_free(node->as.conditional_expression.else_expression);
             break;
         case JSL_AST_MEMBER_EXPRESSION: jsl_ast_node_free(node->as.member_expression.object); break;
+        case JSL_AST_STRUCT_LITERAL_EXPRESSION:
+            for (size_t i = 0; i < node->as.struct_literal_expression.field_count; i++) jsl_ast_node_free(node->as.struct_literal_expression.fields[i].value);
+            free(node->as.struct_literal_expression.fields);
+            break;
         case JSL_AST_CALL_EXPRESSION:
             jsl_ast_node_free(node->as.call_expression.callee);
             free_list(&node->as.call_expression.arguments);

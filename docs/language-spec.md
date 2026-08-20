@@ -53,7 +53,7 @@ Arithmetic and relational comparison operators require matching numeric operand 
 
 Calls to locally declared functions validate argument count and parameter types, and their result type is the function's declared return type. Imported functions and built-in APIs remain type-unknown until module resolution and standard-library declarations are implemented.
 
-## v0.0.7 executable subset
+## v0.0.8 executable subset
 
 `jsl build` currently compiles this minimal program shape:
 
@@ -66,3 +66,7 @@ function main(): i32 {
 The entry point must be named `main`, have no parameters, and return `i32`. The backend supports additional `i32` functions and parameters, local `i32` and `string` variables, integer and string literals, unary and binary expressions, direct function calls, and returns.
 
 The native console subset supports `console.log`, `console.info`, `console.warn`, `console.error`, and `console.write` with `i32` or `string` values. `log` and `info` use stdout; `warn` and `error` use stderr; and `write` does not append a newline. `console.read()` and `console.readLine()` return a string read from stdin. Other valid programs can be parsed and type-checked but are not executable until later backend milestones.
+
+## Structs
+
+v0.0.8 supports fixed-shape struct declarations, typed fields, struct literals, and field access. Struct fields are emitted in declaration order, producing deterministic native C layouts. A struct literal must provide every declared field and cannot provide an unknown field. Accessing an unknown field is a compile error.

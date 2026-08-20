@@ -12,6 +12,7 @@ typedef struct {
 
 typedef enum {
     JSL_AST_IMPORT_DECLARATION,
+    JSL_AST_STRUCT_DECLARATION,
     JSL_AST_FUNCTION_DECLARATION,
     JSL_AST_BLOCK_STATEMENT,
     JSL_AST_VARIABLE_STATEMENT,
@@ -24,6 +25,7 @@ typedef enum {
     JSL_AST_BINARY_EXPRESSION,
     JSL_AST_CONDITIONAL_EXPRESSION,
     JSL_AST_MEMBER_EXPRESSION,
+    JSL_AST_STRUCT_LITERAL_EXPRESSION,
     JSL_AST_CALL_EXPRESSION,
     JSL_AST_GROUPING_EXPRESSION
 } JslAstKind;
@@ -45,6 +47,9 @@ typedef struct {
     JslAstText type_name;
 } JslAstParameter;
 
+typedef struct { JslPosition position; JslAstText name; JslAstText type_name; } JslAstField;
+typedef struct { JslPosition position; JslAstText name; JslAstNode *value; } JslAstStructLiteralField;
+
 typedef struct {
     JslAstNode **items;
     size_t count;
@@ -60,6 +65,7 @@ struct JslAstNode {
             size_t name_count;
             JslAstText module_path;
         } import_declaration;
+        struct { JslAstText name; JslAstField *fields; size_t field_count; } struct_declaration;
         struct {
             int is_exported;
             JslAstText name;
@@ -96,6 +102,7 @@ struct JslAstNode {
             JslAstNode *else_expression;
         } conditional_expression;
         struct { JslAstNode *object; JslAstText property; } member_expression;
+        struct { JslAstText type_name; JslAstStructLiteralField *fields; size_t field_count; } struct_literal_expression;
         struct { JslAstNode *callee; JslAstNodeList arguments; } call_expression;
         struct { JslAstNode *expression; } grouping_expression;
     } as;

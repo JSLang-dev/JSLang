@@ -10,9 +10,9 @@ JSLang follows JavaScript and TypeScript conventions wherever they work with sta
 
 ## Status
 
-The current compiler is **v0.0.7**. It provides source-positioned lexing through `jsl lex`, parser output through `jsl parse`, semantic and type validation through `jsl check`, and native executable generation through `jsl build`.
+The current compiler is **v0.0.8**. It provides source-positioned lexing through `jsl lex`, parser output through `jsl parse`, semantic and type validation through `jsl check`, and native executable generation through `jsl build`.
 
-**v0.0.7** adds the first native standard-library layer: JavaScript-style `console` output and basic input APIs.
+**v0.0.8** adds fixed-shape structs with typed fields, struct literals, statically resolved field access, and deterministic native C layouts.
 
 The root [`VERSION`](VERSION) file is the single source of truth for the released compiler version.
 

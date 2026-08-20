@@ -48,6 +48,28 @@ static JslAstNode *parse_statement(JslParser *parser);
 static JslAstNode *parse_primary(JslParser *parser) {
     JslToken token = parser->current;
     if (match(parser, JSL_TOKEN_IDENTIFIER)) {
+        if (match(parser, JSL_TOKEN_LEFT_BRACE)) {
+            JslAstStructLiteralField *fields = NULL;
+            size_t field_count = 0;
+            while (!check(parser, JSL_TOKEN_RIGHT_BRACE)) {
+                if (!consume(parser, JSL_TOKEN_IDENTIFIER, "expected struct field name")) { free(fields); return NULL; }
+                JslToken name = parser->previous;
+                if (!consume(parser, JSL_TOKEN_COLON, "expected ':' after struct field name")) { free(fields); return NULL; }
+                JslAstNode *value = parse_expression(parser);
+                JslAstStructLiteralField *grown = value == NULL ? NULL : realloc(fields, (field_count + 1) * sizeof(*fields));
+                if (grown == NULL) { jsl_ast_node_free(value); free(fields); set_error(parser, name.position, "out of memory"); return NULL; }
+                fields = grown;
+                fields[field_count++] = (JslAstStructLiteralField){name.position, token_text(name), value};
+                if (!match(parser, JSL_TOKEN_COMMA)) break;
+            }
+            if (!consume(parser, JSL_TOKEN_RIGHT_BRACE, "expected '}' after struct literal")) { for (size_t i = 0; i < field_count; i++) jsl_ast_node_free(fields[i].value); free(fields); return NULL; }
+            JslAstNode *node = new_node(parser, JSL_AST_STRUCT_LITERAL_EXPRESSION, token.position);
+            if (node == NULL) { for (size_t i = 0; i < field_count; i++) jsl_ast_node_free(fields[i].value); free(fields); return NULL; }
+            node->as.struct_literal_expression.type_name = token_text(token);
+            node->as.struct_literal_expression.fields = fields;
+            node->as.struct_literal_expression.field_count = field_count;
+            return node;
+        }
         JslAstNode *node = new_node(parser, JSL_AST_IDENTIFIER_EXPRESSION, token.position);
         if (node != NULL) node->as.identifier_expression.name = token_text(token);
         return node;
@@ -338,6 +360,32 @@ static JslAstNode *parse_import(JslParser *parser, JslPosition position) {
     return node;
 }
 
+static JslAstNode *parse_struct(JslParser *parser, JslPosition position) {
+    if (!consume(parser, JSL_TOKEN_IDENTIFIER, "expected struct name")) return NULL;
+    JslToken name = parser->previous;
+    if (!consume(parser, JSL_TOKEN_LEFT_BRACE, "expected '{' after struct name")) return NULL;
+    JslAstField *fields = NULL;
+    size_t field_count = 0;
+    while (!check(parser, JSL_TOKEN_RIGHT_BRACE)) {
+        if (!consume(parser, JSL_TOKEN_IDENTIFIER, "expected struct field name")) { free(fields); return NULL; }
+        JslToken field_name = parser->previous;
+        if (!consume(parser, JSL_TOKEN_COLON, "expected ':' after struct field name") || !consume(parser, JSL_TOKEN_IDENTIFIER, "expected struct field type")) { free(fields); return NULL; }
+        JslAstText field_type = token_text(parser->previous);
+        if (!consume(parser, JSL_TOKEN_SEMICOLON, "expected ';' after struct field")) { free(fields); return NULL; }
+        JslAstField *grown = realloc(fields, (field_count + 1) * sizeof(*fields));
+        if (grown == NULL) { free(fields); set_error(parser, field_name.position, "out of memory"); return NULL; }
+        fields = grown;
+        fields[field_count++] = (JslAstField){field_name.position, token_text(field_name), field_type};
+    }
+    if (!consume(parser, JSL_TOKEN_RIGHT_BRACE, "expected '}' after struct declaration")) { free(fields); return NULL; }
+    JslAstNode *node = new_node(parser, JSL_AST_STRUCT_DECLARATION, position);
+    if (node == NULL) { free(fields); return NULL; }
+    node->as.struct_declaration.name = token_text(name);
+    node->as.struct_declaration.fields = fields;
+    node->as.struct_declaration.field_count = field_count;
+    return node;
+}
+
 void jsl_parser_init(JslParser *parser, const char *filename, const char *source) {
     jsl_lexer_init(&parser->lexer, filename, source);
     parser->current = (JslToken){0};
@@ -354,9 +402,10 @@ int jsl_parser_parse_program(JslParser *parser, JslAstProgram *program) {
         JslToken token = parser->current;
         JslAstNode *declaration;
         if (match(parser, JSL_TOKEN_IMPORT)) declaration = parse_import(parser, token.position);
+        else if (match(parser, JSL_TOKEN_STRUCT)) declaration = parse_struct(parser, token.position);
         else {
             int is_exported = match(parser, JSL_TOKEN_EXPORT);
-            if (!match(parser, JSL_TOKEN_FUNCTION)) { set_error(parser, token.position, "expected import or function declaration"); break; }
+            if (!match(parser, JSL_TOKEN_FUNCTION)) { set_error(parser, token.position, "expected import, struct, or function declaration"); break; }
             declaration = parse_function(parser, token.position, is_exported);
         }
         if (declaration == NULL || !jsl_ast_node_list_append(&program->declarations, declaration)) {
@@ -388,6 +437,10 @@ static void print_node(const JslAstNode *node) {
                 print_text(node->as.import_declaration.names[i]);
             }
             printf(") "); print_text(node->as.import_declaration.module_path); putchar(')'); break;
+        case JSL_AST_STRUCT_DECLARATION:
+            printf("(struct "); print_text(node->as.struct_declaration.name);
+            for (size_t i = 0; i < node->as.struct_declaration.field_count; i++) { putchar(' '); print_text(node->as.struct_declaration.fields[i].name); putchar(':'); print_text(node->as.struct_declaration.fields[i].type_name); }
+            putchar(')'); break;
         case JSL_AST_FUNCTION_DECLARATION:
             printf("(%sfunction ", node->as.function_declaration.is_exported ? "export " : ""); print_text(node->as.function_declaration.name); printf(" (");
             for (size_t i = 0; i < node->as.function_declaration.parameter_count; i++) {
@@ -412,6 +465,10 @@ static void print_node(const JslAstNode *node) {
         case JSL_AST_BINARY_EXPRESSION: putchar('('); print_text(node->as.binary_expression.operator_text); putchar(' '); print_node(node->as.binary_expression.left); putchar(' '); print_node(node->as.binary_expression.right); putchar(')'); break;
         case JSL_AST_CONDITIONAL_EXPRESSION: printf("(?: "); print_node(node->as.conditional_expression.condition); putchar(' '); print_node(node->as.conditional_expression.then_expression); putchar(' '); print_node(node->as.conditional_expression.else_expression); putchar(')'); break;
         case JSL_AST_MEMBER_EXPRESSION: printf("(member "); print_node(node->as.member_expression.object); putchar(' '); print_text(node->as.member_expression.property); putchar(')'); break;
+        case JSL_AST_STRUCT_LITERAL_EXPRESSION:
+            printf("(new "); print_text(node->as.struct_literal_expression.type_name);
+            for (size_t i = 0; i < node->as.struct_literal_expression.field_count; i++) { putchar(' '); print_text(node->as.struct_literal_expression.fields[i].name); putchar(':'); print_node(node->as.struct_literal_expression.fields[i].value); }
+            putchar(')'); break;
         case JSL_AST_CALL_EXPRESSION: printf("(call "); print_node(node->as.call_expression.callee); print_list(&node->as.call_expression.arguments); putchar(')'); break;
         case JSL_AST_GROUPING_EXPRESSION: printf("(group "); print_node(node->as.grouping_expression.expression); putchar(')'); break;
     }

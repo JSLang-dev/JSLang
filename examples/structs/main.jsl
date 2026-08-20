@@ -1,0 +1,13 @@
+struct User {
+    name: string;
+    age: i32;
+}
+
+function main(): i32 {
+    const user: User = User {
+        name: "Salmen",
+        age: 30
+    };
+
+    return user.age;
+}

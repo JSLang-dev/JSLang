@@ -15,6 +15,7 @@ static JslScope *scope_new(JslScope *parent) { JslScope *scope = calloc(1, sizeo
 static void scope_free(JslScope *scope) { if (scope == NULL) return; for (JslSymbol *symbol = scope->symbols; symbol != NULL;) { JslSymbol *next = symbol->next; free(symbol); symbol = next; } free(scope); }
 static JslSymbol *scope_find_local(const JslScope *scope, JslAstText name) { for (JslSymbol *symbol = scope->symbols; symbol != NULL; symbol = symbol->next) if (text_equals(symbol->name, name)) return symbol; return NULL; }
 static JslSymbol *scope_find(const JslScope *scope, JslAstText name) { for (; scope != NULL; scope = scope->parent) { JslSymbol *symbol = scope_find_local(scope, name); if (symbol != NULL) return symbol; } return NULL; }
+static const JslAstField *struct_field(const JslAstNode *declaration, JslAstText name) { for (size_t i = 0; i < declaration->as.struct_declaration.field_count; i++) if (text_equals(declaration->as.struct_declaration.fields[i].name, name)) return &declaration->as.struct_declaration.fields[i]; return NULL; }
 
 static int scope_declare(JslChecker *checker, JslScope *scope, JslAstText name, JslSymbolKind kind, JslType type, const JslAstNode *function, JslPosition position) {
     if (scope_find_local(scope, name) != NULL) { set_error(checker, position, "duplicate declaration in this scope"); return 0; }
@@ -77,7 +78,30 @@ static JslType check_expression(JslChecker *checker, JslScope *scope, const JslA
             left = check_expression(checker, scope, node->as.conditional_expression.condition); if (left != JSL_TYPE_UNKNOWN && left != JSL_TYPE_BOOL) set_error(checker, node->as.conditional_expression.condition->position, "conditional expression requires a bool condition");
             right = check_expression(checker, scope, node->as.conditional_expression.then_expression); JslType alternate = check_expression(checker, scope, node->as.conditional_expression.else_expression);
             if (!checker->had_error && !compatible(right, alternate)) set_error(checker, node->position, "conditional branches must have matching types"); return right;
-        case JSL_AST_MEMBER_EXPRESSION: check_expression(checker, scope, node->as.member_expression.object); return JSL_TYPE_UNKNOWN;
+        case JSL_AST_MEMBER_EXPRESSION:
+            if (node->as.member_expression.object->kind == JSL_AST_IDENTIFIER_EXPRESSION) {
+                JslSymbol *symbol = scope_find(scope, node->as.member_expression.object->as.identifier_expression.name);
+                if (symbol != NULL && symbol->kind == JSL_SYMBOL_VARIABLE && symbol->function != NULL) {
+                    const JslAstField *field = struct_field(symbol->function, node->as.member_expression.property);
+                    if (field == NULL) { set_error(checker, node->position, "unknown struct field"); return JSL_TYPE_UNKNOWN; }
+                    return jsl_type_from_name(field->type_name);
+                }
+            }
+            check_expression(checker, scope, node->as.member_expression.object); return JSL_TYPE_UNKNOWN;
+        case JSL_AST_STRUCT_LITERAL_EXPRESSION: {
+            JslSymbol *symbol = scope_find(scope, node->as.struct_literal_expression.type_name);
+            if (symbol == NULL || symbol->kind != JSL_SYMBOL_STRUCT) { set_error(checker, node->position, "unknown struct type"); return JSL_TYPE_UNKNOWN; }
+            if (node->as.struct_literal_expression.field_count != symbol->function->as.struct_declaration.field_count) { set_error(checker, node->position, "missing or unknown struct fields"); return JSL_TYPE_UNKNOWN; }
+            for (size_t i = 0; i < node->as.struct_literal_expression.field_count; i++) {
+                const JslAstStructLiteralField *value = &node->as.struct_literal_expression.fields[i]; const JslAstField *field = struct_field(symbol->function, value->name);
+                for (size_t j = 0; j < i; j++) if (text_equals(node->as.struct_literal_expression.fields[j].name, value->name)) { set_error(checker, value->position, "duplicate struct field"); return JSL_TYPE_UNKNOWN; }
+                if (field == NULL) { set_error(checker, value->position, "unknown struct field"); return JSL_TYPE_UNKNOWN; }
+                JslType expected = jsl_type_from_name(field->type_name); JslType actual = check_expression(checker, scope, value->value);
+                if (!checker->had_error && expected != JSL_TYPE_UNKNOWN && !compatible(expected, actual)) set_error(checker, value->position, "struct field value does not match field type");
+                if (checker->had_error) return JSL_TYPE_UNKNOWN;
+            }
+            return JSL_TYPE_UNKNOWN;
+        }
         case JSL_AST_CALL_EXPRESSION: return check_call(checker, scope, node);
         case JSL_AST_GROUPING_EXPRESSION: return check_expression(checker, scope, node->as.grouping_expression.expression);
         default: set_error(checker, node->position, "invalid expression"); return JSL_TYPE_UNKNOWN;
@@ -93,8 +117,9 @@ static int check_block(JslChecker *checker, JslScope *parent, const JslAstNode *
             case JSL_AST_VARIABLE_STATEMENT:
                 actual = check_expression(checker, scope, node->as.variable_statement.initializer); if (checker->had_error) break;
                 expected = node->as.variable_statement.type_name.start == NULL ? actual : named_type(checker, node->as.variable_statement.type_name, node->position);
+                if (checker->had_error && node->as.variable_statement.type_name.start != NULL) { JslSymbol *struct_symbol = scope_find(scope, node->as.variable_statement.type_name); if (struct_symbol != NULL && struct_symbol->kind == JSL_SYMBOL_STRUCT) { checker->had_error = 0; checker->error_message = NULL; expected = JSL_TYPE_UNKNOWN; } }
                 if (!checker->had_error && !compatible(expected, actual)) set_error(checker, node->position, "variable initializer type does not match declaration type");
-                if (!checker->had_error) scope_declare(checker, scope, node->as.variable_statement.name, JSL_SYMBOL_VARIABLE, expected, NULL, node->position);
+                if (!checker->had_error) { const JslAstNode *struct_declaration = node->as.variable_statement.initializer->kind == JSL_AST_STRUCT_LITERAL_EXPRESSION ? scope_find(scope, node->as.variable_statement.initializer->as.struct_literal_expression.type_name)->function : NULL; scope_declare(checker, scope, node->as.variable_statement.name, JSL_SYMBOL_VARIABLE, expected, struct_declaration, node->position); }
                 break;
             case JSL_AST_RETURN_STATEMENT:
                 actual = node->as.return_statement.value == NULL ? JSL_TYPE_VOID : check_expression(checker, scope, node->as.return_statement.value);
@@ -116,6 +141,7 @@ static int declare_global_symbols(JslChecker *checker, JslScope *global, const J
     for (size_t i = 0; i < program->declarations.count && !checker->had_error; i++) {
         const JslAstNode *node = program->declarations.items[i];
         if (node->kind == JSL_AST_IMPORT_DECLARATION) for (size_t j = 0; j < node->as.import_declaration.name_count && !checker->had_error; j++) scope_declare(checker, global, node->as.import_declaration.names[j], JSL_SYMBOL_IMPORT, JSL_TYPE_UNKNOWN, NULL, node->position);
+        else if (node->kind == JSL_AST_STRUCT_DECLARATION) scope_declare(checker, global, node->as.struct_declaration.name, JSL_SYMBOL_STRUCT, JSL_TYPE_UNKNOWN, node, node->position);
         else if (node->kind == JSL_AST_FUNCTION_DECLARATION) {
             named_type(checker, node->as.function_declaration.return_type, node->position);
             for (size_t j = 0; j < node->as.function_declaration.parameter_count && !checker->had_error; j++) named_type(checker, node->as.function_declaration.parameters[j].type_name, node->as.function_declaration.parameters[j].position);

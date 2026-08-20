@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef enum { JSL_C_VALUE_I32, JSL_C_VALUE_STRING, JSL_C_VALUE_INVALID } JslCValueType;
+typedef enum { JSL_C_VALUE_I32, JSL_C_VALUE_STRING, JSL_C_VALUE_STRUCT, JSL_C_VALUE_INVALID } JslCValueType;
 typedef struct JslLocal JslLocal;
 struct JslLocal { JslAstText name; JslCValueType type; JslLocal *next; };
 
@@ -34,6 +34,8 @@ static JslCValueType expression_type(const JslAstNode *node, const JslLocal *loc
         case JSL_AST_CALL_EXPRESSION:
             if (is_console_member(node->as.call_expression.callee, "read") || is_console_member(node->as.call_expression.callee, "readLine")) return JSL_C_VALUE_STRING;
             return node->as.call_expression.callee->kind == JSL_AST_IDENTIFIER_EXPRESSION ? JSL_C_VALUE_I32 : JSL_C_VALUE_INVALID;
+        case JSL_AST_STRUCT_LITERAL_EXPRESSION: return JSL_C_VALUE_STRUCT;
+        case JSL_AST_MEMBER_EXPRESSION: return JSL_C_VALUE_I32;
         default: return JSL_C_VALUE_INVALID;
     }
 }
@@ -62,6 +64,15 @@ static int emit_expression(const JslAstNode *node, const JslLocal *locals, FILE 
             if (!write_text(output, node->as.call_expression.callee->as.identifier_expression.name) || !write_format(output, "(")) return 0;
             for (size_t i = 0; i < node->as.call_expression.arguments.count; i++) if ((i != 0 && !write_format(output, ", ")) || !emit_expression(node->as.call_expression.arguments.items[i], locals, output, backend)) return 0;
             return write_format(output, ")");
+        case JSL_AST_MEMBER_EXPRESSION:
+            return emit_expression(node->as.member_expression.object, locals, output, backend) && write_format(output, ".") && write_text(output, node->as.member_expression.property);
+        case JSL_AST_STRUCT_LITERAL_EXPRESSION:
+            if (!write_format(output, "(") || !write_text(output, node->as.struct_literal_expression.type_name) || !write_format(output, "){ ")) return 0;
+            for (size_t i = 0; i < node->as.struct_literal_expression.field_count; i++) {
+                const JslAstStructLiteralField *field = &node->as.struct_literal_expression.fields[i];
+                if ((i != 0 && !write_format(output, ", ")) || !write_format(output, ".") || !write_text(output, field->name) || !write_format(output, " = ") || !emit_expression(field->value, locals, output, backend)) return 0;
+            }
+            return write_format(output, " }");
         default: set_error(backend, node->position, "unsupported expression in v0.0.7 backend"); return 0;
     }
 }
@@ -104,11 +115,11 @@ static int emit_function_body(const JslAstNode *function, FILE *output, JslCBack
         const JslAstNode *statement = statements->items[i];
         if (statement->kind == JSL_AST_VARIABLE_STATEMENT) {
             JslCValueType type = expression_type(statement->as.variable_statement.initializer, locals);
-            if (statement->as.variable_statement.type_name.start != NULL) type = text_equals(statement->as.variable_statement.type_name, "i32") ? JSL_C_VALUE_I32 : text_equals(statement->as.variable_statement.type_name, "string") ? JSL_C_VALUE_STRING : JSL_C_VALUE_INVALID;
-            if (type == JSL_C_VALUE_INVALID) { set_error(backend, statement->position, "v0.0.7 backend supports i32 and string local variables only"); success = 0; break; }
+            if (statement->as.variable_statement.type_name.start != NULL) type = text_equals(statement->as.variable_statement.type_name, "i32") ? JSL_C_VALUE_I32 : text_equals(statement->as.variable_statement.type_name, "string") ? JSL_C_VALUE_STRING : JSL_C_VALUE_STRUCT;
+            if (type == JSL_C_VALUE_INVALID) { set_error(backend, statement->position, "unsupported local variable in v0.0.8 backend"); success = 0; break; }
             const char *qualifier = !statement->as.variable_statement.is_mutable && type == JSL_C_VALUE_I32 ? "const " : "";
-            const char *c_type = type == JSL_C_VALUE_I32 ? "int32_t" : "const char *";
-            success = write_format(output, "    %s%s ", qualifier, c_type) && write_text(output, statement->as.variable_statement.name) && write_format(output, " = ") && emit_expression(statement->as.variable_statement.initializer, locals, output, backend) && write_format(output, ";\n") && add_local(&locals, statement->as.variable_statement.name, type, backend, statement->position);
+            const char *c_type = type == JSL_C_VALUE_I32 ? "int32_t" : type == JSL_C_VALUE_STRING ? "const char *" : NULL;
+            success = write_format(output, "    %s", qualifier) && (c_type != NULL ? write_format(output, "%s ", c_type) : write_text(output, statement->as.variable_statement.type_name) && write_format(output, " ")) && write_text(output, statement->as.variable_statement.name) && write_format(output, " = ") && emit_expression(statement->as.variable_statement.initializer, locals, output, backend) && write_format(output, ";\n") && add_local(&locals, statement->as.variable_statement.name, type, backend, statement->position);
         } else if (statement->kind == JSL_AST_RETURN_STATEMENT) {
             success = statement->as.return_statement.value != NULL && write_format(output, "    return ") && emit_expression(statement->as.return_statement.value, locals, output, backend) && write_format(output, ";\n");
             if (!success && backend->error_message == NULL) set_error(backend, statement->position, "v0.0.7 backend requires return values");
@@ -138,17 +149,29 @@ static int emit_console_runtime(FILE *output) {
         "static char *jsl_console_read_line(void) { char *value = malloc(4096); if (value == NULL) return NULL; if (fgets(value, 4096, stdin) == NULL) { value[0] = '\\0'; return value; } value[strcspn(value, \"\\n\")] = '\\0'; return value; }\n\n");
 }
 
+static int emit_struct_declaration(const JslAstNode *declaration, FILE *output, JslCBackend *backend) {
+    if (!write_format(output, "typedef struct ") || !write_text(output, declaration->as.struct_declaration.name) || !write_format(output, " {\n")) return 0;
+    for (size_t i = 0; i < declaration->as.struct_declaration.field_count; i++) {
+        const JslAstField *field = &declaration->as.struct_declaration.fields[i];
+        const char *type = text_equals(field->type_name, "i32") ? "int32_t" : text_equals(field->type_name, "string") ? "const char *" : NULL;
+        if (!write_format(output, "    ") || (type != NULL ? !write_format(output, "%s ", type) : !write_text(output, field->type_name)) || !write_text(output, field->name) || !write_format(output, ";\n")) { set_error(backend, field->position, "unable to emit struct field"); return 0; }
+    }
+    return write_format(output, "} ") && write_text(output, declaration->as.struct_declaration.name) && write_format(output, ";\n\n");
+}
+
 int jsl_c_backend_emit(const JslAstProgram *program, FILE *output, JslCBackend *backend) {
     size_t main_count = 0;
     if (!write_format(output, "#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n") || !emit_console_runtime(output)) return 0;
+    for (size_t i = 0; i < program->declarations.count; i++) if (program->declarations.items[i]->kind == JSL_AST_STRUCT_DECLARATION && !emit_struct_declaration(program->declarations.items[i], output, backend)) return 0;
     for (size_t i = 0; i < program->declarations.count; i++) {
         const JslAstNode *function = program->declarations.items[i];
-        if (function->kind != JSL_AST_FUNCTION_DECLARATION) { set_error(backend, function->position, "v0.0.7 backend supports function declarations only"); return 0; }
+        if (function->kind == JSL_AST_STRUCT_DECLARATION) continue;
+        if (function->kind != JSL_AST_FUNCTION_DECLARATION) { set_error(backend, function->position, "v0.0.8 backend supports structs and function declarations only"); return 0; }
         if (text_equals(function->as.function_declaration.name, "main")) { main_count++; if (function->as.function_declaration.parameter_count != 0) { set_error(backend, function->position, "main function cannot have parameters"); return 0; } }
         if (!emit_function_signature(function, output, backend, 1)) return 0;
     }
     if (main_count != 1) { set_error(backend, program->declarations.count == 0 ? (JslPosition){"<input>", 1, 1} : program->declarations.items[0]->position, "v0.0.7 backend requires exactly one main function"); return 0; }
     if (!write_format(output, "\n")) return 0;
-    for (size_t i = 0; i < program->declarations.count; i++) if (!emit_function_signature(program->declarations.items[i], output, backend, 0) || !emit_function_body(program->declarations.items[i], output, backend)) return 0;
+    for (size_t i = 0; i < program->declarations.count; i++) if (program->declarations.items[i]->kind == JSL_AST_FUNCTION_DECLARATION && (!emit_function_signature(program->declarations.items[i], output, backend, 0) || !emit_function_body(program->declarations.items[i], output, backend))) return 0;
     return 1;
 }
