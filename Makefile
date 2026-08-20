@@ -1,7 +1,7 @@
 CC ?= cc
 CFLAGS := -std=c17 -Wall -Wextra -Wpedantic -I.
 BUILD_DIR := build
-COMMON := compiler/source/source.c compiler/token/token.c compiler/lexer/lexer.c compiler/ast/ast.c compiler/parser/parser.c compiler/types/types.c compiler/checker/checker.c
+COMMON := compiler/source/source.c compiler/token/token.c compiler/lexer/lexer.c compiler/ast/ast.c compiler/parser/parser.c compiler/types/types.c compiler/checker/checker.c compiler/backend/c_backend.c
 VERSION := $(shell tr -d '\r\n' < VERSION)
 
 .PHONY: all test clean
@@ -31,6 +31,7 @@ test: $(BUILD_DIR)/lexer_tests $(BUILD_DIR)/parser_tests $(BUILD_DIR)/checker_te
 	$(BUILD_DIR)/parser_tests
 	$(BUILD_DIR)/checker_tests
 	$(BUILD_DIR)/type_tests
+	sh tests/integration/build_test.sh $(BUILD_DIR)/jsl
 	test "$$($(BUILD_DIR)/jsl version)" = "jsl $(VERSION)"
 
 clean:

@@ -10,9 +10,9 @@ JSLang follows JavaScript and TypeScript conventions wherever they work with sta
 
 ## Status
 
-The current compiler is **v0.0.4**. It provides source-positioned lexing through `jsl lex`, parser output through `jsl parse`, and semantic and type validation through `jsl check`.
+The current compiler is **v0.0.5**. It provides source-positioned lexing through `jsl lex`, parser output through `jsl parse`, semantic and type validation through `jsl check`, and native executable generation through `jsl build`.
 
-**v0.0.4** validates primitive types, function parameters and return values, typed variable initializers, binary expressions, conditions, and calls to locally declared functions.
+**v0.0.5** introduces the first native executable backend. It compiles the minimal supported entry point, `function main(): i32 { return <integer>; }`, into a native executable using a temporary C translation step and the host C compiler.
 
 The root [`VERSION`](VERSION) file is the single source of truth for the released compiler version.
 
@@ -56,6 +56,16 @@ Validate scopes and names with:
 ```bash
 ./build/jsl check hello.jsl
 ```
+
+Build the v0.0.5 executable example:
+
+```bash
+./build/jsl build examples/executable/main.jsl
+./main
+echo $?
+```
+
+The resulting exit code is `42`. The first backend intentionally supports only a parameterless `main` function with one integer-literal return statement. Functions, variables, calls, and standard-library APIs are scheduled for later executable milestones.
 
 ## Syntax guide for v0.0.2
 
@@ -184,6 +194,8 @@ ctest --test-dir build
 
 `jsl lex <file>` prints each token with its filename, line, and column. `jsl parse <file>` prints a deterministic representation of the parsed AST. `jsl check <file>` validates scopes, names, primitive types, function calls, and return values. Run `./build/jsl` to see the current CLI usage.
 
+`jsl build <file>` writes an executable named after the input file in the current directory. Use `jsl build <file> -o <path>` to select the output path.
+
 ## Roadmap
 
 | Version | Focus |
@@ -192,5 +204,6 @@ ctest --test-dir build
 | v0.0.2 | AST, recursive-descent parser, and `jsl parse` |
 | v0.0.3 | Scopes, symbols, duplicate-name validation, and undefined-variable detection |
 | v0.0.4 | Primitive types, inference, assignment checks, binary expressions, returns, and function calls |
+| v0.0.5 | Minimal native executable backend and `jsl build` |
 
 See [`AGENT.md`](AGENT.md) for the project’s complete design principles and development roadmap. The evolving language references live in [`docs/`](docs/).

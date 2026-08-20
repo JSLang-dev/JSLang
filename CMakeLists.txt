@@ -16,6 +16,7 @@ add_library(jslang_frontend
     compiler/parser/parser.c
     compiler/types/types.c
     compiler/checker/checker.c
+    compiler/backend/c_backend.c
 )
 target_include_directories(jslang_frontend PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(jslang_frontend PRIVATE -Wall -Wextra -Wpedantic)
@@ -45,3 +46,4 @@ add_executable(type_tests tests/types/types_test.c)
 target_link_libraries(type_tests PRIVATE jslang_frontend)
 target_compile_options(type_tests PRIVATE -Wall -Wextra -Wpedantic)
 add_test(NAME type_tests COMMAND type_tests)
+add_test(NAME build_test COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/build_test.sh $<TARGET_FILE:jsl>)

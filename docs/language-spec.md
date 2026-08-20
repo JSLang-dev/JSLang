@@ -52,3 +52,15 @@ An integer literal has type `i32`; a floating-point literal has type `f64`; a st
 Arithmetic and relational comparison operators require matching numeric operand types. Equality operators require matching operand types. Logical operators, `if` conditions, and ternary conditions require `bool`. The two result expressions of a ternary expression must have matching types.
 
 Calls to locally declared functions validate argument count and parameter types, and their result type is the function's declared return type. Imported functions and built-in APIs remain type-unknown until module resolution and standard-library declarations are implemented.
+
+## v0.0.5 executable subset
+
+`jsl build` currently compiles this minimal program shape:
+
+```typescript
+function main(): i32 {
+    return 42;
+}
+```
+
+The entry point must be named `main`, have no parameters, return `i32`, and contain exactly one return statement with an integer literal. Other valid v0.0.4 programs can be parsed and type-checked but are not executable until later backend milestones.
