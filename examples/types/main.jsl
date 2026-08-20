@@ -1,0 +1,16 @@
+function multiply(left: i32, right: i32): i32 {
+    return left * right;
+}
+
+function main(): i32 {
+    const left: i32 = 6;
+    const right = 7;
+    const result: i32 = multiply(left, right);
+    const ready: bool = result > 0;
+
+    if (ready) {
+        console.info(result);
+    }
+
+    return result;
+}

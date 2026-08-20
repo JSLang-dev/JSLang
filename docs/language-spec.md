@@ -1,6 +1,6 @@
 # JSLang language specification
 
-This is a draft specification. v0.0.3 defines lexical tokens, source positions, parser grammar, and the initial name-resolution rules below.
+This is a draft specification. v0.0.4 defines lexical tokens, source positions, parser grammar, name resolution, and the initial primitive type rules below.
 
 ## Compatibility and safety
 
@@ -42,3 +42,13 @@ v0.0.3 creates a global scope for functions and imported names, a function scope
 `console` is available as a built-in global name so that JavaScript-style console calls can be parsed and name-checked. Property validation and the standard-library implementation are deferred to later milestones.
 
 Module paths are not resolved yet. An imported name is available in the importing file, but the compiler does not yet verify that the target module exists or exports that name.
+
+## Primitive type checking
+
+v0.0.4 recognizes `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `isize`, `usize`, `f32`, `f64`, `bool`, `char`, `string`, and `void`. Unknown type names are compile errors.
+
+An integer literal has type `i32`; a floating-point literal has type `f64`; a string literal has type `string`; and boolean literals have type `bool`. A variable with a type annotation, a function argument, and a returned expression must match the declared type. This version does not perform implicit numeric conversion.
+
+Arithmetic and relational comparison operators require matching numeric operand types. Equality operators require matching operand types. Logical operators, `if` conditions, and ternary conditions require `bool`. The two result expressions of a ternary expression must have matching types.
+
+Calls to locally declared functions validate argument count and parameter types, and their result type is the function's declared return type. Imported functions and built-in APIs remain type-unknown until module resolution and standard-library declarations are implemented.

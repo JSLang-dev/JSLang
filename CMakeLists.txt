@@ -14,6 +14,7 @@ add_library(jslang_frontend
     compiler/lexer/lexer.c
     compiler/ast/ast.c
     compiler/parser/parser.c
+    compiler/types/types.c
     compiler/checker/checker.c
 )
 target_include_directories(jslang_frontend PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -39,3 +40,8 @@ add_executable(checker_tests tests/checker/checker_test.c)
 target_link_libraries(checker_tests PRIVATE jslang_frontend)
 target_compile_options(checker_tests PRIVATE -Wall -Wextra -Wpedantic)
 add_test(NAME checker_tests COMMAND checker_tests)
+
+add_executable(type_tests tests/types/types_test.c)
+target_link_libraries(type_tests PRIVATE jslang_frontend)
+target_compile_options(type_tests PRIVATE -Wall -Wextra -Wpedantic)
+add_test(NAME type_tests COMMAND type_tests)
