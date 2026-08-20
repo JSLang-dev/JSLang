@@ -1,3 +1,3 @@
 # Syntax
 
-v0.0.2 parses functions, variables, blocks, returns, conditionals, expressions, and function calls. See [the language specification](language-spec.md) for the supported grammar.
+v0.0.3 parses functions, variables, blocks, returns, conditionals, expressions, calls, imports, and exports. `jsl check` validates the scope and name rules described in [the language specification](language-spec.md).

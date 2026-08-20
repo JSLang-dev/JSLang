@@ -10,9 +10,9 @@ JSLang follows JavaScript and TypeScript conventions wherever they work with sta
 
 ## Status
 
-The current compiler is **v0.0.2**. It provides source-positioned lexing through `jsl lex` and parser output through `jsl parse`.
+The current compiler is **v0.0.3**. It provides source-positioned lexing through `jsl lex`, parser output through `jsl parse`, and semantic validation through `jsl check`.
 
-**v0.0.2** introduces the AST and parsing support for functions, typed parameters, blocks, variable declarations, return statements, expression statements, `if` statements, unary and binary expressions, and function calls.
+**v0.0.3** introduces scopes and a symbol table. It detects duplicate declarations and undefined variables before type checking begins in v0.0.4.
 
 The root [`VERSION`](VERSION) file is the single source of truth for the released compiler version.
 
@@ -51,6 +51,12 @@ Inspect its parsed structure with:
 ./build/jsl parse hello.jsl
 ```
 
+Validate scopes and names with:
+
+```bash
+./build/jsl check hello.jsl
+```
+
 ## Syntax guide for v0.0.2
 
 ### Modules
@@ -73,7 +79,7 @@ export function add(left: i32, right: i32): i32 {
 }
 ```
 
-v0.0.2 parses module declarations and preserves them in the AST. Resolving module paths, validating exports, and linking imported symbols will be implemented during semantic analysis.
+v0.0.3 records imported names in the module scope, so they can be referenced in the importing file. Resolving module paths, validating exports, and linking imported symbols remain future module-system work.
 
 ### Functions
 
@@ -176,7 +182,7 @@ cmake --build build
 ctest --test-dir build
 ```
 
-`jsl lex <file>` prints each token with its filename, line, and column. `jsl parse <file>` prints a deterministic representation of the parsed AST. Run `./build/jsl` to see the current CLI usage.
+`jsl lex <file>` prints each token with its filename, line, and column. `jsl parse <file>` prints a deterministic representation of the parsed AST. `jsl check <file>` validates scopes, duplicate declarations, and undefined variables. Run `./build/jsl` to see the current CLI usage.
 
 ## Roadmap
 
@@ -184,7 +190,7 @@ ctest --test-dir build
 | --- | --- |
 | v0.0.1 | Source positions, tokens, lexer, and `jsl lex` |
 | v0.0.2 | AST, recursive-descent parser, and `jsl parse` |
-| v0.0.3 | Scopes, symbols, and duplicate-name validation |
+| v0.0.3 | Scopes, symbols, duplicate-name validation, and undefined-variable detection |
 | v0.0.4 | Type checking and type inference |
 
 See [`AGENT.md`](AGENT.md) for the project’s complete design principles and development roadmap. The evolving language references live in [`docs/`](docs/).

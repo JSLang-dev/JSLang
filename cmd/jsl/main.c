@@ -1,3 +1,4 @@
+#include "compiler/checker/checker.h"
 #include "compiler/lexer/lexer.h"
 #include "compiler/parser/parser.h"
 #include "compiler/source/source.h"
@@ -24,7 +25,7 @@ static char *read_file(const char *path) {
     return source;
 }
 
-static void print_usage(void) { fprintf(stderr, "usage: jsl <version|lex|parse> [arguments]\n"); }
+static void print_usage(void) { fprintf(stderr, "usage: jsl <version|lex|parse|check> [arguments]\n"); }
 
 static int lex_file(const char *path) {
     char *source = read_file(path);
@@ -70,11 +71,40 @@ static int parse_file(const char *path) {
     return 0;
 }
 
+static int check_file(const char *path) {
+    char *source = read_file(path);
+    if (source == NULL) { fprintf(stderr, "error: unable to read '%s'\n", path); return 1; }
+    JslParser parser;
+    JslAstProgram program;
+    jsl_parser_init(&parser, path, source);
+    if (!jsl_parser_parse_program(&parser, &program)) {
+        JslPosition position;
+        fprintf(stderr, "error: %s\n", jsl_parser_error(&parser, &position));
+        fprintf(stderr, "  %s:%zu:%zu\n", position.filename, position.line, position.column);
+        free(source);
+        return 1;
+    }
+    JslChecker checker;
+    jsl_checker_init(&checker);
+    if (!jsl_checker_check_program(&checker, &program)) {
+        JslPosition position;
+        fprintf(stderr, "error: %s\n", jsl_checker_error(&checker, &position));
+        fprintf(stderr, "  %s:%zu:%zu\n", position.filename, position.line, position.column);
+        jsl_ast_program_free(&program);
+        free(source);
+        return 1;
+    }
+    jsl_ast_program_free(&program);
+    free(source);
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) { print_usage(); return 2; }
     if (strcmp(argv[1], "version") == 0) { printf("jsl %s\n", JSLANG_VERSION); return 0; }
     if (strcmp(argv[1], "lex") == 0 && argc == 3) return lex_file(argv[2]);
     if (strcmp(argv[1], "parse") == 0 && argc == 3) return parse_file(argv[2]);
+    if (strcmp(argv[1], "check") == 0 && argc == 3) return check_file(argv[2]);
     print_usage();
     return 2;
 }
