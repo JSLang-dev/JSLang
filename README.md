@@ -10,9 +10,9 @@ JSLang follows JavaScript and TypeScript conventions wherever they work with sta
 
 ## Status
 
-The current compiler is **v0.0.6**. It provides source-positioned lexing through `jsl lex`, parser output through `jsl parse`, semantic and type validation through `jsl check`, and native executable generation through `jsl build`.
+The current compiler is **v0.0.7**. It provides source-positioned lexing through `jsl lex`, parser output through `jsl parse`, semantic and type validation through `jsl check`, and native executable generation through `jsl build`.
 
-**v0.0.6** extends the native backend with multiple `i32` functions, typed parameters, local variables, arithmetic expressions, and direct function calls.
+**v0.0.7** adds the first native standard-library layer: JavaScript-style `console` output and basic input APIs.
 
 The root [`VERSION`](VERSION) file is the single source of truth for the released compiler version.
 
@@ -73,7 +73,28 @@ The resulting exit code is `42`. v0.0.6 can also build [the functions example](e
 echo $?
 ```
 
-The backend currently supports `i32` functions and parameters, local `i32` variables, integer literals, unary and binary expressions, direct calls, and returns. Standard-library APIs, structs, conditionals, imports, and other types are scheduled for later executable milestones.
+The backend currently supports `i32` functions and parameters, local `i32` and `string` variables, integer and string literals, unary and binary expressions, direct calls, returns, and the documented console APIs. Structs, conditionals, imports, and other types are scheduled for later executable milestones.
+
+### Console API
+
+v0.0.7 provides JavaScript-style native console calls:
+
+```ts
+console.log("Hello JSLang");
+console.info(42);
+console.warn("warning");
+console.error("error");
+console.write("Without a newline");
+```
+
+`log` and `info` write to stdout with a newline. `warn` and `error` write to stderr with a newline. `write` writes to stdout without a newline. `read()` and `readLine()` are available as string-returning expressions, for example `const name: string = console.readLine();`.
+
+Build and run the console example:
+
+```bash
+./build/jsl build examples/console/main.jsl -o console-app
+./console-app
+```
 
 ## Syntax guide for v0.0.2
 
@@ -214,5 +235,6 @@ ctest --test-dir build
 | v0.0.4 | Primitive types, inference, assignment checks, binary expressions, returns, and function calls |
 | v0.0.5 | Minimal native executable backend and `jsl build` |
 | v0.0.6 | Multiple functions, `i32` parameters, local variables, calls, and expressions in the native backend |
+| v0.0.7 | Native JavaScript-style console API and basic string I/O |
 
 See [`AGENT.md`](AGENT.md) for the project’s complete design principles and development roadmap. The evolving language references live in [`docs/`](docs/).

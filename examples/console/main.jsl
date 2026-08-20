@@ -1,0 +1,8 @@
+function main(): i32 {
+    console.write("Hello, ");
+    console.log("JSLang");
+    console.info(42);
+    console.warn("warning");
+    console.error("error");
+    return 0;
+}
