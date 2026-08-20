@@ -4,15 +4,15 @@ JSLang is an experimental, statically typed, ahead-of-time compiled programming 
 
 > JavaScript-like syntax. Native binaries. From cloud to kernel.
 
-JSLang is not JavaScript and does not run on Node.js or V8. Source is compiled by the `jsl` tool into native programs in future milestones.
+JSLang is not JavaScript and does not run on Node.js or V8. The `jsl` tool compiles its supported subset into native executables.
 
 JSLang follows JavaScript and TypeScript conventions wherever they work with static typing, deterministic native compilation, and safety. Where a dynamic runtime behavior would conflict with those constraints, JSLang uses an explicit documented alternative. This keeps the language familiar while supporting native applications and future kernel-level development.
 
 ## Status
 
-The current compiler is **v0.0.8**. It provides source-positioned lexing through `jsl lex`, parser output through `jsl parse`, semantic and type validation through `jsl check`, and native executable generation through `jsl build`.
+The current compiler is **v0.0.9**. It provides source-positioned lexing through `jsl lex`, parser output through `jsl parse`, semantic and type validation through `jsl check`, and native executable generation through `jsl build`.
 
-**v0.0.8** adds fixed-shape structs with typed fields, struct literals, statically resolved field access, and deterministic native C layouts.
+**v0.0.9** adds native `if`/`else` execution, including nested blocks and boolean conditional expressions.
 
 The root [`VERSION`](VERSION) file is the single source of truth for the released compiler version.
 
@@ -24,7 +24,7 @@ JSLang is designed for explicit, predictable code:
 - Functions use a TypeScript-like declaration syntax.
 - `const` declares an immutable binding; `let` declares a mutable binding.
 - Statements end with semicolons, and blocks use braces.
-- Errors, concurrency, low-level memory access, structs, interfaces, and JSLangK are planned language features; they are not all available in v0.0.2.
+- Errors, concurrency, low-level memory access, interfaces, and JSLangK are planned language features.
 - Safety takes priority over dynamic convenience: undefined behavior and low-level operations must be explicit, documented, and auditable.
 
 ## Your first JSLang program
@@ -39,7 +39,15 @@ function main(): i32 {
 }
 ```
 
-For now, `console.log` illustrates the intended JavaScript-style API. The compiler has not yet implemented type checking, the standard library, or native code generation, so this program cannot run yet. You can inspect its tokens with the current compiler:
+Build the compiler, then compile and run the program:
+
+```bash
+make
+./build/jsl build hello.jsl -o hello
+./hello
+```
+
+You can also inspect its tokens with:
 
 ```bash
 ./build/jsl lex hello.jsl
@@ -57,7 +65,7 @@ Validate scopes and names with:
 ./build/jsl check hello.jsl
 ```
 
-Build the v0.0.5 executable example:
+Build the basic executable example:
 
 ```bash
 ./build/jsl build examples/executable/main.jsl
@@ -65,7 +73,7 @@ Build the v0.0.5 executable example:
 echo $?
 ```
 
-The resulting exit code is `42`. v0.0.6 can also build [the functions example](examples/functions/main.jsl):
+The resulting exit code is `42`. The compiler can also build [the functions example](examples/functions/main.jsl):
 
 ```bash
 ./build/jsl build examples/functions/main.jsl -o functions-app
@@ -73,11 +81,11 @@ The resulting exit code is `42`. v0.0.6 can also build [the functions example](e
 echo $?
 ```
 
-The backend currently supports `i32` functions and parameters, local `i32` and `string` variables, integer and string literals, unary and binary expressions, direct calls, returns, and the documented console APIs. Structs, conditionals, imports, and other types are scheduled for later executable milestones.
+The backend supports `i32` functions and parameters; local `i32`, `bool`, `string`, and struct values; integer, boolean, and string literals; unary, binary, and ternary expressions; `if`/`else`; direct calls; returns; structs; and the documented console APIs. Imports and the remaining types are not yet executable.
 
 ### Console API
 
-v0.0.7 provides JavaScript-style native console calls:
+JSLang provides JavaScript-style native console calls:
 
 ```ts
 console.log("Hello JSLang");
@@ -96,7 +104,7 @@ Build and run the console example:
 ./console-app
 ```
 
-## Syntax guide for v0.0.2
+## Syntax guide
 
 ### Modules
 
@@ -161,7 +169,7 @@ let enabled = true;
 
 ### Expressions and calls
 
-v0.0.2 parses literals, identifiers, parenthesized expressions, unary operators, binary operators, conditional expressions, property access, and function calls.
+JSLang parses literals, identifiers, parenthesized expressions, unary operators, binary operators, conditional expressions, property access, and function calls.
 
 ```ts
 function calculate(value: i32): i32 {
@@ -176,7 +184,7 @@ function main(): i32 {
 }
 ```
 
-The lexer recognizes arithmetic operators (`+`, `-`, `*`, `/`, `%`), comparisons (`==`, `!=`, `<`, `<=`, `>`, `>=`), logical operators (`!`, `&&`, `||`), and assignment (`=`). v0.0.4 requires matching numeric types for arithmetic and comparisons, matching types for equality, and `bool` operands for logical operators and conditions.
+The lexer recognizes arithmetic operators (`+`, `-`, `*`, `/`, `%`), comparisons (`==`, `!=`, `<`, `<=`, `>`, `>=`), logical operators (`!`, `&&`, `||`), and assignment (`=`). Type checking requires matching numeric types for arithmetic and comparisons, matching types for equality, and `bool` operands for logical operators and conditions.
 
 ### Conditional expressions
 
@@ -190,7 +198,7 @@ The condition is evaluated first, followed by exactly one of the two result expr
 
 ### Blocks, returns, and conditionals
 
-Blocks group statements in braces. Use `return` to leave a function. The parser milestone also supports `if` and optional `else` blocks.
+Blocks group statements in braces. Use `return` to leave a function. Native builds support `if` and optional `else` blocks.
 
 ```ts
 function absolute(value: i32): i32 {
@@ -236,5 +244,7 @@ ctest --test-dir build
 | v0.0.5 | Minimal native executable backend and `jsl build` |
 | v0.0.6 | Multiple functions, `i32` parameters, local variables, calls, and expressions in the native backend |
 | v0.0.7 | Native JavaScript-style console API and basic string I/O |
+| v0.0.8 | Fixed-shape structs, typed fields, struct literals, and native C layouts |
+| v0.0.9 | Native `if`/`else` execution and boolean conditional expressions |
 
-See [`AGENT.md`](AGENT.md) for the project’s complete design principles and development roadmap. The evolving language references live in [`docs/`](docs/).
+The evolving language references live in [`docs/`](docs/).

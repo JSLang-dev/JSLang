@@ -7,7 +7,8 @@ function absolute(value: i32): i32 {
 }
 
 function main(): i32 {
-    const result: i32 = absolute(-42);
+    const shouldCalculate: bool = true;
+    const result: i32 = shouldCalculate ? absolute(-42) : 0;
     console.error(result);
     return result;
 }
