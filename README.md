@@ -10,9 +10,9 @@ JSLang follows JavaScript and TypeScript conventions wherever they work with sta
 
 ## Status
 
-The current compiler is **v0.0.9**. It provides source-positioned lexing through `jsl lex`, parser output through `jsl parse`, semantic and type validation through `jsl check`, and native executable generation through `jsl build`.
+The current compiler is **v0.0.10**. It provides source-positioned lexing through `jsl lex`, parser output through `jsl parse`, semantic and type validation through `jsl check`, and native executable generation through `jsl build`.
 
-**v0.0.9** adds native `if`/`else` execution, including nested blocks and boolean conditional expressions.
+**v0.0.10** adds mutable local-variable assignment with type and immutability checks, plus native C emission.
 
 The root [`VERSION`](VERSION) file is the single source of truth for the released compiler version.
 
@@ -153,6 +153,7 @@ Use `const` for values that do not change and `let` for values that do. Type ann
 ```ts
 const answer: i32 = 42;
 let counter: i32 = 0;
+counter = counter + 1;
 
 const title = "JSLang";
 let enabled = true;
@@ -246,5 +247,6 @@ ctest --test-dir build
 | v0.0.7 | Native JavaScript-style console API and basic string I/O |
 | v0.0.8 | Fixed-shape structs, typed fields, struct literals, and native C layouts |
 | v0.0.9 | Native `if`/`else` execution and boolean conditional expressions |
+| v0.0.10 | Mutable local-variable assignments with native code generation |
 
 The evolving language references live in [`docs/`](docs/).

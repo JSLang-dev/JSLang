@@ -16,6 +16,7 @@ typedef enum {
     JSL_AST_FUNCTION_DECLARATION,
     JSL_AST_BLOCK_STATEMENT,
     JSL_AST_VARIABLE_STATEMENT,
+    JSL_AST_ASSIGNMENT_STATEMENT,
     JSL_AST_RETURN_STATEMENT,
     JSL_AST_EXPRESSION_STATEMENT,
     JSL_AST_IF_STATEMENT,
@@ -81,6 +82,7 @@ struct JslAstNode {
             JslAstText type_name;
             JslAstNode *initializer;
         } variable_statement;
+        struct { JslAstText name; JslAstNode *value; } assignment_statement;
         struct { JslAstNode *value; } return_statement;
         struct { JslAstNode *expression; } expression_statement;
         struct {

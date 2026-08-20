@@ -39,6 +39,7 @@ void jsl_ast_node_free(JslAstNode *node) {
             break;
         case JSL_AST_BLOCK_STATEMENT: free_list(&node->as.block_statement.statements); break;
         case JSL_AST_VARIABLE_STATEMENT: jsl_ast_node_free(node->as.variable_statement.initializer); break;
+        case JSL_AST_ASSIGNMENT_STATEMENT: jsl_ast_node_free(node->as.assignment_statement.value); break;
         case JSL_AST_RETURN_STATEMENT: jsl_ast_node_free(node->as.return_statement.value); break;
         case JSL_AST_EXPRESSION_STATEMENT: jsl_ast_node_free(node->as.expression_statement.expression); break;
         case JSL_AST_IF_STATEMENT:

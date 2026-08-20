@@ -54,11 +54,21 @@ static void test_undefined_variable(void) {
     assert(position.line == 1 && position.column == 31);
 }
 
+static void test_assignments(void) {
+    JslChecker checker;
+    assert(check_source("assignment.jsl", "function main(): i32 { let value: i32 = 1; value = value + 41; return value; }", &checker));
+    assert(!check_source("constant.jsl", "function main(): i32 { const value: i32 = 1; value = 2; return value; }", &checker));
+    assert(strcmp(jsl_checker_error(&checker, NULL), "cannot assign to immutable binding") == 0);
+    assert(!check_source("mismatch.jsl", "function main(): i32 { let value: i32 = 1; value = true; return value; }", &checker));
+    assert(strcmp(jsl_checker_error(&checker, NULL), "assignment value does not match variable type") == 0);
+}
+
 int main(void) {
     test_valid_scopes_and_symbols();
     test_duplicate_variable();
     test_duplicate_function_and_parameter();
     test_undefined_variable();
+    test_assignments();
     puts("checker tests passed");
     return 0;
 }

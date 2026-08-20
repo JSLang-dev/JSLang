@@ -83,6 +83,18 @@ static void test_conditional_expression(void) {
     jsl_ast_program_free(&program);
 }
 
+static void test_assignment_statement(void) {
+    JslParser parser;
+    JslAstProgram program;
+    jsl_parser_init(&parser, "assignment.jsl", "function main(): i32 { let value: i32 = 1; value = value + 41; return value; }");
+    assert(jsl_parser_parse_program(&parser, &program));
+    JslAstNode *assignment = program.declarations.items[0]->as.function_declaration.body->as.block_statement.statements.items[1];
+    assert(assignment->kind == JSL_AST_ASSIGNMENT_STATEMENT);
+    assert(text_equals(assignment->as.assignment_statement.name, "value"));
+    assert(assignment->as.assignment_statement.value->kind == JSL_AST_BINARY_EXPRESSION);
+    jsl_ast_program_free(&program);
+}
+
 static void test_import_and_export(void) {
     JslParser parser;
     JslAstProgram program;
@@ -115,6 +127,7 @@ int main(void) {
     test_function_declaration();
     test_if_calls_and_unary_expressions();
     test_conditional_expression();
+    test_assignment_statement();
     test_import_and_export();
     test_parser_error_has_position();
     puts("parser tests passed");

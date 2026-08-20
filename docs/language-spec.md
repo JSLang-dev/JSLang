@@ -21,9 +21,11 @@ functionDeclaration
 parameters       → parameter ( "," parameter )* ;
 parameter        → IDENTIFIER ":" IDENTIFIER ;
 block            → "{" statement* "}" ;
-statement        → variableDeclaration | returnStatement | ifStatement | expressionStatement ;
+statement        → variableDeclaration | assignmentStatement | returnStatement | ifStatement | expressionStatement ;
 variableDeclaration
                  → ( "const" | "let" ) IDENTIFIER ( ":" IDENTIFIER )? "=" expression ";" ;
+assignmentStatement
+                 → IDENTIFIER "=" expression ";" ;
 returnStatement  → "return" expression? ";" ;
 ifStatement      → "if" "(" expression ")" block ( "else" block )? ;
 expressionStatement
@@ -31,7 +33,7 @@ expressionStatement
 expression       → binaryExpression ( "?" expression ":" expression )? ;
 ```
 
-The parser accepts identifiers; integer, floating-point, string, boolean, and null literals; grouping; unary `!`, `-`, and `+`; binary arithmetic, comparison, equality, and logical operators; JavaScript/TypeScript-style conditional expressions (`condition ? whenTrue : whenFalse`); dotted property access; and function calls. This includes JavaScript-style calls such as `console.log(message)`, `console.info(message)`, and `console.error(message)`. Assignment is tokenized but not yet a parsed expression or statement. Type validity and runtime behavior are deferred to semantic analysis and later compiler stages.
+The parser accepts identifiers; integer, floating-point, string, boolean, and null literals; grouping; unary `!`, `-`, and `+`; binary arithmetic, comparison, equality, and logical operators; JavaScript/TypeScript-style conditional expressions (`condition ? whenTrue : whenFalse`); dotted property access; function calls; and assignments to identifier bindings. This includes JavaScript-style calls such as `console.log(message)`, `console.info(message)`, and `console.error(message)`. Type validity and runtime behavior are deferred to semantic analysis and later compiler stages.
 
 Source files use the `.jsl` extension. v0.0.3 records named imports and exported functions, but does not yet resolve module paths or validate imported and exported symbols.
 
@@ -53,7 +55,9 @@ Arithmetic and relational comparison operators require matching numeric operand 
 
 Calls to locally declared functions validate argument count and parameter types, and their result type is the function's declared return type. Imported functions and built-in APIs remain type-unknown until module resolution and standard-library declarations are implemented.
 
-## v0.0.9 executable subset
+`let` bindings may be assigned a new value with `name = expression;`. `const` bindings, parameters, imports, functions, and built-ins cannot be assigned. An assignment value must match the binding's declared or inferred type.
+
+## v0.0.10 executable subset
 
 `jsl build` currently compiles this minimal program shape:
 

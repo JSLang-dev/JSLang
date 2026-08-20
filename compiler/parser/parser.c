@@ -296,6 +296,25 @@ static JslAstNode *parse_statement(JslParser *parser) {
     if (match(parser, JSL_TOKEN_RETURN)) return parse_return_statement(parser, token.position);
     if (match(parser, JSL_TOKEN_IF)) return parse_if_statement(parser, token.position);
     JslAstNode *expression = parse_expression(parser);
+    if (expression != NULL && match(parser, JSL_TOKEN_ASSIGN)) {
+        if (expression->kind != JSL_AST_IDENTIFIER_EXPRESSION) {
+            set_error(parser, expression->position, "assignment target must be an identifier");
+            jsl_ast_node_free(expression);
+            return NULL;
+        }
+        JslAstNode *value = parse_expression(parser);
+        if (value == NULL || !consume(parser, JSL_TOKEN_SEMICOLON, "expected ';' after assignment")) {
+            jsl_ast_node_free(expression);
+            jsl_ast_node_free(value);
+            return NULL;
+        }
+        JslAstNode *node = new_node(parser, JSL_AST_ASSIGNMENT_STATEMENT, token.position);
+        if (node == NULL) { jsl_ast_node_free(expression); jsl_ast_node_free(value); return NULL; }
+        node->as.assignment_statement.name = expression->as.identifier_expression.name;
+        node->as.assignment_statement.value = value;
+        jsl_ast_node_free(expression);
+        return node;
+    }
     if (expression == NULL || !consume(parser, JSL_TOKEN_SEMICOLON, "expected ';' after expression")) { jsl_ast_node_free(expression); return NULL; }
     JslAstNode *node = new_node(parser, JSL_AST_EXPRESSION_STATEMENT, token.position);
     if (node == NULL) { jsl_ast_node_free(expression); return NULL; }
@@ -453,6 +472,7 @@ static void print_node(const JslAstNode *node) {
             printf("(%s ", node->as.variable_statement.is_mutable ? "let" : "const"); print_text(node->as.variable_statement.name);
             if (node->as.variable_statement.type_name.start != NULL) { putchar(':'); print_text(node->as.variable_statement.type_name); }
             putchar(' '); print_node(node->as.variable_statement.initializer); putchar(')'); break;
+        case JSL_AST_ASSIGNMENT_STATEMENT: printf("(assign "); print_text(node->as.assignment_statement.name); putchar(' '); print_node(node->as.assignment_statement.value); putchar(')'); break;
         case JSL_AST_RETURN_STATEMENT: printf("(return"); if (node->as.return_statement.value != NULL) { putchar(' '); print_node(node->as.return_statement.value); } putchar(')'); break;
         case JSL_AST_EXPRESSION_STATEMENT: printf("(expression "); print_node(node->as.expression_statement.expression); putchar(')'); break;
         case JSL_AST_IF_STATEMENT:

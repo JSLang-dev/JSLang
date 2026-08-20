@@ -46,14 +46,14 @@ static JslCValueType expression_type(const JslAstNode *node, const JslLocal *loc
 static int emit_expression(const JslAstNode *node, const JslLocal *locals, FILE *output, JslCBackend *backend) {
     switch (node->kind) {
         case JSL_AST_IDENTIFIER_EXPRESSION:
-            if (local_type(locals, node->as.identifier_expression.name) == JSL_C_VALUE_INVALID) { set_error(backend, node->position, "unknown local in v0.0.9 backend"); return 0; }
+            if (local_type(locals, node->as.identifier_expression.name) == JSL_C_VALUE_INVALID) { set_error(backend, node->position, "unknown local in v0.0.10 backend"); return 0; }
             return write_text(output, node->as.identifier_expression.name);
         case JSL_AST_LITERAL_EXPRESSION:
             if (node->as.literal_expression.kind == JSL_AST_LITERAL_INTEGER) return write_text(output, node->as.literal_expression.value);
             if (node->as.literal_expression.kind == JSL_AST_LITERAL_STRING) return write_string_literal(output, node->as.literal_expression.value);
             if (node->as.literal_expression.kind == JSL_AST_LITERAL_TRUE) return write_format(output, "true");
             if (node->as.literal_expression.kind == JSL_AST_LITERAL_FALSE) return write_format(output, "false");
-            set_error(backend, node->position, "v0.0.9 backend supports integer, bool, and string literals only"); return 0;
+            set_error(backend, node->position, "v0.0.10 backend supports integer, bool, and string literals only"); return 0;
         case JSL_AST_GROUPING_EXPRESSION:
             return write_format(output, "(") && emit_expression(node->as.grouping_expression.expression, locals, output, backend) && write_format(output, ")");
         case JSL_AST_UNARY_EXPRESSION:
@@ -67,7 +67,7 @@ static int emit_expression(const JslAstNode *node, const JslLocal *locals, FILE 
                 if (node->as.call_expression.arguments.count != 0) { set_error(backend, node->position, "console read methods do not accept arguments"); return 0; }
                 return write_format(output, "jsl_console_read_line()");
             }
-            if (node->as.call_expression.callee->kind != JSL_AST_IDENTIFIER_EXPRESSION) { set_error(backend, node->position, "v0.0.9 backend supports direct function calls only"); return 0; }
+            if (node->as.call_expression.callee->kind != JSL_AST_IDENTIFIER_EXPRESSION) { set_error(backend, node->position, "v0.0.10 backend supports direct function calls only"); return 0; }
             if (!write_text(output, node->as.call_expression.callee->as.identifier_expression.name) || !write_format(output, "(")) return 0;
             for (size_t i = 0; i < node->as.call_expression.arguments.count; i++) if ((i != 0 && !write_format(output, ", ")) || !emit_expression(node->as.call_expression.arguments.items[i], locals, output, backend)) return 0;
             return write_format(output, ")");
@@ -80,7 +80,7 @@ static int emit_expression(const JslAstNode *node, const JslLocal *locals, FILE 
                 if ((i != 0 && !write_format(output, ", ")) || !write_format(output, ".") || !write_text(output, field->name) || !write_format(output, " = ") || !emit_expression(field->value, locals, output, backend)) return 0;
             }
             return write_format(output, " }");
-        default: set_error(backend, node->position, "unsupported expression in v0.0.9 backend"); return 0;
+        default: set_error(backend, node->position, "unsupported expression in v0.0.10 backend"); return 0;
     }
 }
 
@@ -99,14 +99,14 @@ static int emit_console_statement(const JslAstNode *call, const JslLocal *locals
 static int emit_parameters(const JslAstNode *function, FILE *output, JslCBackend *backend) {
     for (size_t i = 0; i < function->as.function_declaration.parameter_count; i++) {
         const JslAstParameter *parameter = &function->as.function_declaration.parameters[i];
-        if (!text_equals(parameter->type_name, "i32")) { set_error(backend, parameter->position, "v0.0.9 backend supports i32 parameters only"); return 0; }
+        if (!text_equals(parameter->type_name, "i32")) { set_error(backend, parameter->position, "v0.0.10 backend supports i32 parameters only"); return 0; }
         if ((i != 0 && !write_format(output, ", ")) || !write_format(output, "int32_t ") || !write_text(output, parameter->name)) return 0;
     }
     return 1;
 }
 
 static int emit_function_signature(const JslAstNode *function, FILE *output, JslCBackend *backend, int prototype) {
-    if (!text_equals(function->as.function_declaration.return_type, "i32")) { set_error(backend, function->position, "v0.0.9 backend supports i32 return types only"); return 0; }
+    if (!text_equals(function->as.function_declaration.return_type, "i32")) { set_error(backend, function->position, "v0.0.10 backend supports i32 return types only"); return 0; }
     if (!write_format(output, "%s ", text_equals(function->as.function_declaration.name, "main") ? "int" : "int32_t") || !write_text(output, function->as.function_declaration.name) || !write_format(output, "(")) return 0;
     if (function->as.function_declaration.parameter_count == 0) { if (!write_format(output, "void")) return 0; }
     else if (!emit_parameters(function, output, backend)) return 0;
@@ -122,25 +122,28 @@ static int emit_block(const JslAstNode *block, const JslLocal *parent, FILE *out
         if (statement->kind == JSL_AST_VARIABLE_STATEMENT) {
             JslCValueType type = expression_type(statement->as.variable_statement.initializer, locals);
             if (statement->as.variable_statement.type_name.start != NULL) type = text_equals(statement->as.variable_statement.type_name, "i32") ? JSL_C_VALUE_I32 : text_equals(statement->as.variable_statement.type_name, "bool") ? JSL_C_VALUE_BOOL : text_equals(statement->as.variable_statement.type_name, "string") ? JSL_C_VALUE_STRING : JSL_C_VALUE_STRUCT;
-            if (type == JSL_C_VALUE_INVALID) { set_error(backend, statement->position, "unsupported local variable in v0.0.9 backend"); success = 0; break; }
+            if (type == JSL_C_VALUE_INVALID) { set_error(backend, statement->position, "unsupported local variable in v0.0.10 backend"); success = 0; break; }
             const char *qualifier = !statement->as.variable_statement.is_mutable && type == JSL_C_VALUE_I32 ? "const " : "";
             const char *c_type = type == JSL_C_VALUE_I32 ? "int32_t" : type == JSL_C_VALUE_BOOL ? "bool" : type == JSL_C_VALUE_STRING ? "const char *" : NULL;
             success = write_format(output, "    %s", qualifier) && (c_type != NULL ? write_format(output, "%s ", c_type) : write_text(output, statement->as.variable_statement.type_name) && write_format(output, " ")) && write_text(output, statement->as.variable_statement.name) && write_format(output, " = ") && emit_expression(statement->as.variable_statement.initializer, locals, output, backend) && write_format(output, ";\n") && add_local(&locals, statement->as.variable_statement.name, type, backend, statement->position);
+        } else if (statement->kind == JSL_AST_ASSIGNMENT_STATEMENT) {
+            if (local_type(locals, statement->as.assignment_statement.name) == JSL_C_VALUE_INVALID) { set_error(backend, statement->position, "unknown local in v0.0.10 backend"); success = 0; }
+            else success = write_format(output, "    ") && write_text(output, statement->as.assignment_statement.name) && write_format(output, " = ") && emit_expression(statement->as.assignment_statement.value, locals, output, backend) && write_format(output, ";\n");
         } else if (statement->kind == JSL_AST_RETURN_STATEMENT) {
             success = statement->as.return_statement.value != NULL && write_format(output, "    return ") && emit_expression(statement->as.return_statement.value, locals, output, backend) && write_format(output, ";\n");
-            if (!success && backend->error_message == NULL) set_error(backend, statement->position, "v0.0.9 backend requires return values");
+            if (!success && backend->error_message == NULL) set_error(backend, statement->position, "v0.0.10 backend requires return values");
         } else if (statement->kind == JSL_AST_EXPRESSION_STATEMENT && statement->as.expression_statement.expression->kind == JSL_AST_CALL_EXPRESSION) {
             int result = emit_console_statement(statement->as.expression_statement.expression, locals, output, backend);
-            if (result == 0) { set_error(backend, statement->position, "v0.0.9 backend supports console output calls only as expression statements"); success = 0; }
+            if (result == 0) { set_error(backend, statement->position, "v0.0.10 backend supports console output calls only as expression statements"); success = 0; }
             else success = result > 0;
         } else if (statement->kind == JSL_AST_IF_STATEMENT) {
-            if (expression_type(statement->as.if_statement.condition, locals) != JSL_C_VALUE_BOOL) { set_error(backend, statement->as.if_statement.condition->position, "if condition must be bool in v0.0.9 backend"); success = 0; }
+            if (expression_type(statement->as.if_statement.condition, locals) != JSL_C_VALUE_BOOL) { set_error(backend, statement->as.if_statement.condition->position, "if condition must be bool in v0.0.10 backend"); success = 0; }
             else {
                 success = write_format(output, "    if (") && emit_expression(statement->as.if_statement.condition, locals, output, backend) && write_format(output, ") ");
                 if (success) success = emit_block(statement->as.if_statement.then_branch, locals, output, backend);
                 if (success && statement->as.if_statement.else_branch != NULL) success = write_format(output, "    else ") && emit_block(statement->as.if_statement.else_branch, locals, output, backend);
             }
-        } else { set_error(backend, statement->position, "unsupported statement in v0.0.9 backend"); success = 0; }
+        } else { set_error(backend, statement->position, "unsupported statement in v0.0.10 backend"); success = 0; }
     }
     if (success) success = write_format(output, "}\n");
     free_locals_until(locals, parent);
@@ -187,11 +190,11 @@ int jsl_c_backend_emit(const JslAstProgram *program, FILE *output, JslCBackend *
     for (size_t i = 0; i < program->declarations.count; i++) {
         const JslAstNode *function = program->declarations.items[i];
         if (function->kind == JSL_AST_STRUCT_DECLARATION) continue;
-        if (function->kind != JSL_AST_FUNCTION_DECLARATION) { set_error(backend, function->position, "v0.0.9 backend supports structs and function declarations only"); return 0; }
+        if (function->kind != JSL_AST_FUNCTION_DECLARATION) { set_error(backend, function->position, "v0.0.10 backend supports structs and function declarations only"); return 0; }
         if (text_equals(function->as.function_declaration.name, "main")) { main_count++; if (function->as.function_declaration.parameter_count != 0) { set_error(backend, function->position, "main function cannot have parameters"); return 0; } }
         if (!emit_function_signature(function, output, backend, 1)) return 0;
     }
-    if (main_count != 1) { set_error(backend, program->declarations.count == 0 ? (JslPosition){"<input>", 1, 1} : program->declarations.items[0]->position, "v0.0.9 backend requires exactly one main function"); return 0; }
+    if (main_count != 1) { set_error(backend, program->declarations.count == 0 ? (JslPosition){"<input>", 1, 1} : program->declarations.items[0]->position, "v0.0.10 backend requires exactly one main function"); return 0; }
     if (!write_format(output, "\n")) return 0;
     for (size_t i = 0; i < program->declarations.count; i++) if (program->declarations.items[i]->kind == JSL_AST_FUNCTION_DECLARATION && (!emit_function_signature(program->declarations.items[i], output, backend, 0) || !emit_function_body(program->declarations.items[i], output, backend))) return 0;
     return 1;

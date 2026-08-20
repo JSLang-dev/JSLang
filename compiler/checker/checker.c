@@ -6,7 +6,7 @@
 
 typedef struct JslSymbol JslSymbol;
 typedef struct JslScope JslScope;
-struct JslSymbol { JslAstText name; JslSymbolKind kind; JslType type; const JslAstNode *function; JslSymbol *next; };
+struct JslSymbol { JslAstText name; JslSymbolKind kind; JslType type; int is_mutable; const JslAstNode *function; JslSymbol *next; };
 struct JslScope { JslScope *parent; JslSymbol *symbols; };
 
 static int text_equals(JslAstText left, JslAstText right) { return left.length == right.length && memcmp(left.start, right.start, left.length) == 0; }
@@ -17,11 +17,11 @@ static JslSymbol *scope_find_local(const JslScope *scope, JslAstText name) { for
 static JslSymbol *scope_find(const JslScope *scope, JslAstText name) { for (; scope != NULL; scope = scope->parent) { JslSymbol *symbol = scope_find_local(scope, name); if (symbol != NULL) return symbol; } return NULL; }
 static const JslAstField *struct_field(const JslAstNode *declaration, JslAstText name) { for (size_t i = 0; i < declaration->as.struct_declaration.field_count; i++) if (text_equals(declaration->as.struct_declaration.fields[i].name, name)) return &declaration->as.struct_declaration.fields[i]; return NULL; }
 
-static int scope_declare(JslChecker *checker, JslScope *scope, JslAstText name, JslSymbolKind kind, JslType type, const JslAstNode *function, JslPosition position) {
+static int scope_declare(JslChecker *checker, JslScope *scope, JslAstText name, JslSymbolKind kind, JslType type, int is_mutable, const JslAstNode *function, JslPosition position) {
     if (scope_find_local(scope, name) != NULL) { set_error(checker, position, "duplicate declaration in this scope"); return 0; }
     JslSymbol *symbol = malloc(sizeof(*symbol));
     if (symbol == NULL) { set_error(checker, position, "out of memory"); return 0; }
-    *symbol = (JslSymbol){name, kind, type, function, scope->symbols}; scope->symbols = symbol; return 1;
+    *symbol = (JslSymbol){name, kind, type, is_mutable, function, scope->symbols}; scope->symbols = symbol; return 1;
 }
 
 static JslType check_expression(JslChecker *checker, JslScope *scope, const JslAstNode *node);
@@ -119,8 +119,16 @@ static int check_block(JslChecker *checker, JslScope *parent, const JslAstNode *
                 expected = node->as.variable_statement.type_name.start == NULL ? actual : named_type(checker, node->as.variable_statement.type_name, node->position);
                 if (checker->had_error && node->as.variable_statement.type_name.start != NULL) { JslSymbol *struct_symbol = scope_find(scope, node->as.variable_statement.type_name); if (struct_symbol != NULL && struct_symbol->kind == JSL_SYMBOL_STRUCT) { checker->had_error = 0; checker->error_message = NULL; expected = JSL_TYPE_UNKNOWN; } }
                 if (!checker->had_error && !compatible(expected, actual)) set_error(checker, node->position, "variable initializer type does not match declaration type");
-                if (!checker->had_error) { const JslAstNode *struct_declaration = node->as.variable_statement.initializer->kind == JSL_AST_STRUCT_LITERAL_EXPRESSION ? scope_find(scope, node->as.variable_statement.initializer->as.struct_literal_expression.type_name)->function : NULL; scope_declare(checker, scope, node->as.variable_statement.name, JSL_SYMBOL_VARIABLE, expected, struct_declaration, node->position); }
+                if (!checker->had_error) { const JslAstNode *struct_declaration = node->as.variable_statement.initializer->kind == JSL_AST_STRUCT_LITERAL_EXPRESSION ? scope_find(scope, node->as.variable_statement.initializer->as.struct_literal_expression.type_name)->function : NULL; scope_declare(checker, scope, node->as.variable_statement.name, JSL_SYMBOL_VARIABLE, expected, node->as.variable_statement.is_mutable, struct_declaration, node->position); }
                 break;
+            case JSL_AST_ASSIGNMENT_STATEMENT: {
+                JslSymbol *symbol = scope_find(scope, node->as.assignment_statement.name);
+                if (symbol == NULL) { set_error(checker, node->position, "undefined variable"); break; }
+                if (symbol->kind != JSL_SYMBOL_VARIABLE || !symbol->is_mutable) { set_error(checker, node->position, "cannot assign to immutable binding"); break; }
+                actual = check_expression(checker, scope, node->as.assignment_statement.value);
+                if (!checker->had_error && !compatible(symbol->type, actual)) set_error(checker, node->as.assignment_statement.value->position, "assignment value does not match variable type");
+                break;
+            }
             case JSL_AST_RETURN_STATEMENT:
                 actual = node->as.return_statement.value == NULL ? JSL_TYPE_VOID : check_expression(checker, scope, node->as.return_statement.value);
                 if (!checker->had_error && !compatible(return_type, actual)) set_error(checker, node->position, "return type does not match function return type"); break;
@@ -140,12 +148,12 @@ static int check_block(JslChecker *checker, JslScope *parent, const JslAstNode *
 static int declare_global_symbols(JslChecker *checker, JslScope *global, const JslAstProgram *program) {
     for (size_t i = 0; i < program->declarations.count && !checker->had_error; i++) {
         const JslAstNode *node = program->declarations.items[i];
-        if (node->kind == JSL_AST_IMPORT_DECLARATION) for (size_t j = 0; j < node->as.import_declaration.name_count && !checker->had_error; j++) scope_declare(checker, global, node->as.import_declaration.names[j], JSL_SYMBOL_IMPORT, JSL_TYPE_UNKNOWN, NULL, node->position);
-        else if (node->kind == JSL_AST_STRUCT_DECLARATION) scope_declare(checker, global, node->as.struct_declaration.name, JSL_SYMBOL_STRUCT, JSL_TYPE_UNKNOWN, node, node->position);
+        if (node->kind == JSL_AST_IMPORT_DECLARATION) for (size_t j = 0; j < node->as.import_declaration.name_count && !checker->had_error; j++) scope_declare(checker, global, node->as.import_declaration.names[j], JSL_SYMBOL_IMPORT, JSL_TYPE_UNKNOWN, 0, NULL, node->position);
+        else if (node->kind == JSL_AST_STRUCT_DECLARATION) scope_declare(checker, global, node->as.struct_declaration.name, JSL_SYMBOL_STRUCT, JSL_TYPE_UNKNOWN, 0, node, node->position);
         else if (node->kind == JSL_AST_FUNCTION_DECLARATION) {
             named_type(checker, node->as.function_declaration.return_type, node->position);
             for (size_t j = 0; j < node->as.function_declaration.parameter_count && !checker->had_error; j++) named_type(checker, node->as.function_declaration.parameters[j].type_name, node->as.function_declaration.parameters[j].position);
-            if (!checker->had_error) scope_declare(checker, global, node->as.function_declaration.name, JSL_SYMBOL_FUNCTION, JSL_TYPE_UNKNOWN, node, node->position);
+            if (!checker->had_error) scope_declare(checker, global, node->as.function_declaration.name, JSL_SYMBOL_FUNCTION, JSL_TYPE_UNKNOWN, 0, node, node->position);
         } else set_error(checker, node->position, "invalid top-level declaration");
     }
     return !checker->had_error;
@@ -153,7 +161,7 @@ static int declare_global_symbols(JslChecker *checker, JslScope *global, const J
 
 static int check_function(JslChecker *checker, JslScope *global, const JslAstNode *function) {
     JslScope *scope = scope_new(global); if (scope == NULL) { set_error(checker, function->position, "out of memory"); return 0; }
-    for (size_t i = 0; i < function->as.function_declaration.parameter_count && !checker->had_error; i++) { const JslAstParameter *parameter = &function->as.function_declaration.parameters[i]; scope_declare(checker, scope, parameter->name, JSL_SYMBOL_PARAMETER, named_type(checker, parameter->type_name, parameter->position), NULL, parameter->position); }
+    for (size_t i = 0; i < function->as.function_declaration.parameter_count && !checker->had_error; i++) { const JslAstParameter *parameter = &function->as.function_declaration.parameters[i]; scope_declare(checker, scope, parameter->name, JSL_SYMBOL_PARAMETER, named_type(checker, parameter->type_name, parameter->position), 0, NULL, parameter->position); }
     if (!checker->had_error) check_block(checker, scope, function->as.function_declaration.body, named_type(checker, function->as.function_declaration.return_type, function->position));
     scope_free(scope); return !checker->had_error;
 }
@@ -161,7 +169,7 @@ static int check_function(JslChecker *checker, JslScope *global, const JslAstNod
 void jsl_checker_init(JslChecker *checker) { *checker = (JslChecker){NULL, {NULL, 0, 0}, 0}; }
 int jsl_checker_check_program(JslChecker *checker, const JslAstProgram *program) {
     JslScope *global = scope_new(NULL); if (global == NULL) { set_error(checker, (JslPosition){"<unknown>", 0, 0}, "out of memory"); return 0; }
-    scope_declare(checker, global, (JslAstText){"console", 7}, JSL_SYMBOL_BUILTIN, JSL_TYPE_UNKNOWN, NULL, (JslPosition){"<builtin>", 1, 1});
+    scope_declare(checker, global, (JslAstText){"console", 7}, JSL_SYMBOL_BUILTIN, JSL_TYPE_UNKNOWN, 0, NULL, (JslPosition){"<builtin>", 1, 1});
     if (!checker->had_error) declare_global_symbols(checker, global, program);
     for (size_t i = 0; i < program->declarations.count && !checker->had_error; i++) if (program->declarations.items[i]->kind == JSL_AST_FUNCTION_DECLARATION) check_function(checker, global, program->declarations.items[i]);
     scope_free(global); return !checker->had_error;

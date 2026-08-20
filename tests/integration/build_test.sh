@@ -38,6 +38,14 @@ set -e
 
 test "$fourth_exit_code" -eq 42
 
+"$jsl" build examples/assignments/main.jsl -o "$output"
+set +e
+"$output"
+fifth_exit_code=$?
+set -e
+
+test "$fifth_exit_code" -eq 42
+
 console_error="$(mktemp /tmp/jslang-console-error-XXXXXX)"
 trap 'rm -f "$output" "$console_error"' EXIT
 console_output="$("$jsl" build examples/console/main.jsl -o "$output" && "$output" 2>"$console_error")"
